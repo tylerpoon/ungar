@@ -1,0 +1,10 @@
+{
+    "possible_raises":[
+        {
+            "raise_type": {
+                "Fixed": 1
+            },
+            "round_config": ["Always"]
+        }
+    ]
+}

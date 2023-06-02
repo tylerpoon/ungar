@@ -1,0 +1,14 @@
+{
+    "starting_stacks": [100, 100],
+    "blinds": [1, 1],
+    "raise_sizes": [1],
+    "betting_type": "Limit",
+    "num_players": 2,
+    "num_rounds": 1,
+    "max_raises": [100],
+    "first_player": [1],
+    "num_suits": 1,
+    "num_ranks": 3,
+    "num_hole_cards": 1,
+    "num_board_cards": [0]
+}

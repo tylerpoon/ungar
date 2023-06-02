@@ -1,4 +1,5 @@
 use super::{
+    action_abstraction::{ActionAbstraction},
     game::{GameInfo, GameState},
     node::{Node, NodeId},
 };
@@ -9,6 +10,7 @@ pub struct AbstractGame {
     game_info: GameInfo,
     nodes: BTreeMap<NodeId, Node>,
     root: NodeId,
+    action_abstraction: ActionAbstraction,
 }
 
 impl AbstractGame {
