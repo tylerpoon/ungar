@@ -12,7 +12,7 @@ pub enum AbstractRaiseType {
     AllIn,
     PotRatio(f32),
     /// Usually just an option for limit games
-    Fixed(i32),
+    Fixed(u32),
 }
 
 /// Represents possible configurations for a raise on a particular round
@@ -21,7 +21,7 @@ pub enum RaiseRoundConfig {
     NotAllowed,
     Always,
     /// Only allowed before X many raises have been made
-    Before(i32),
+    Before(u32),
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -38,7 +38,7 @@ pub struct ActionAbstraction {
 
 impl ActionAbstraction {
     pub fn new(possible_raises: Vec<AbstractRaise>) -> ActionAbstraction {
-        ActionAbstraction { possible_raises: possible_raises }
+        ActionAbstraction { possible_raises }
     }
 
     pub fn from_config(path: &str) -> ActionAbstraction {
@@ -47,8 +47,33 @@ impl ActionAbstraction {
     }
 
     pub fn get_actions(&self, game_info: &GameInfo, game_state: &GameState) -> Vec<Action> {
-        let actions: Vec<Actions> = Vec::new();
-        //TODO
+        let mut actions: Vec<Action> = Vec::new();
+
+        if game_state.is_valid_action(game_info, Action::Fold) {
+            actions.push(Action::Fold);
+        }
+
+        if game_state.is_valid_action(game_info, Action::Call) {
+            actions.push(Action::Call);
+        }
+
+        let mut raises = Vec::new();  //TODO: this pattern might be inefficient
+        let num_raises = game_state.num_raises();
+        for raise in &self.possible_raises {
+            match raise.round_config[game_state.current_round() as usize] {
+                RaiseRoundConfig::Always => {
+                    raises.push(raise);
+                },
+                RaiseRoundConfig::Before(i) if i > num_raises as u32 => {
+                    raises.push(raise);
+                },
+                _ => {},
+            }
+        }
+
+        //TODO: covert abstract raises to "real" raises(not sure how much fixing/fudging will be
+        //allowed here)
+        
 
         actions
     }

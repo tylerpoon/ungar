@@ -2,7 +2,9 @@
 * Somewhat port of https://github.com/ethansbrown/acpc
 */
 
-use poker::{Card};
+use log::warn;
+
+use poker::Card;
 
 use serde::{Deserialize, Serialize};
 
@@ -27,7 +29,7 @@ pub enum BettingType {
 pub enum Action {
     Fold,
     Call,
-    Raise(i32),
+    Raise(u32),
 }
 
 pub type ActionId = usize;
@@ -86,7 +88,9 @@ pub struct GameState {
     /// action[r][i] gives the ith action in round r
     action: [[Option<Action>; MAX_NUM_ACTIONS]; MAX_ROUNDS],
     /// acting_player[r][i] gives the player who made ith action in round r
-    acting_player: [[u8; MAX_NUM_ACTIONS]; MAX_ROUNDS],
+    acting_player: [[PlayerId; MAX_NUM_ACTIONS]; MAX_ROUNDS],
+    /// Player who is currently active
+    active_player: PlayerId,
     /// num_actions[r] gives number of actions made in round r
     num_actions: [u8; MAX_ROUNDS],
     round: u8,
@@ -126,29 +130,148 @@ impl GameState {
         }
 
         GameState {
-            hand_id: hand_id,
-            max_spent: max_spent,
-            min_no_limit_raise_to: min_no_limit_raise_to,
-            spent: spent,
-            stack_player: stack_player,
-            sum_round_spent: sum_round_spent,
+            hand_id,
+            max_spent,
+            min_no_limit_raise_to,
+            spent,
+            stack_player,
+            sum_round_spent,
             action: [[None; MAX_NUM_ACTIONS]; MAX_ROUNDS],
             acting_player: [[0; MAX_NUM_ACTIONS]; MAX_ROUNDS],
+            active_player: game_info.first_player[0],
             num_actions: [0; MAX_ROUNDS],
             round: 0,
             finished: false,
-            players_folded: players_folded,
+            players_folded,
             board_cards: [None; MAX_BOARD_CARDS],
             hole_cards: [[None; MAX_HOLE_CARDS]; MAX_PLAYERS],
         }
     }
 
+    pub fn current_round(&self) -> u8 {
+        self.round
+    }
+    
+    /// Returns current player
     pub fn current_player(&self) -> Result<PlayerId, &'static str> {
         if self.finished {
             return Err("state is finished so there is no active player");
         }
 
-        //TODO(should we track or do similar to acpc?)
+        Ok(self.active_player)
+    }
+
+    /// Returns players who can still take actions
+    pub fn num_active_players(&self, game_info: &GameInfo) -> u8 {
+        let mut count = 0;
+        for i in 0..game_info.num_players {
+            if !self.players_folded[i as usize] && self.spent[i as usize] < self.stack_player[i as usize] {
+                count += 1;
+            }
+        }
+
+        count
+    }
+
+    /// Returns next player after active_player
+    fn next_player(&self, game_info: &GameInfo) -> Result<PlayerId, &'static str> {
+        if self.finished {
+            return Err("state is finished so there is no active player");
+        }
+
+        let mut p = self.active_player;
+
+        loop {
+            p = (p + 1) % game_info.num_players;
+
+            if !self.players_folded[p as usize] && self.spent[p as usize] < self.stack_player[p as usize] {
+                break;
+            }
+        }
+
+        Ok(p)
+    }
+
+    /// Returns number of raises made in this round
+    pub fn num_raises(&self) -> u8 {
+        let mut count: u8 = 0;
+        for i in 0..self.num_actions[self.round as usize] {
+            if let Some(Action::Raise(_)) = self.action[self.round as usize][i as usize] {
+                count += 1;
+            }
+        }
+        count
+    }
+
+    fn raise_range(&self, game_info: &GameInfo) -> (u32, u32) {
+        if self.finished {
+            return (0, 0);
+        }
+
+        if self.num_raises() >= game_info.max_raises[self.round as usize] {
+            return (0, 0);
+        }
+
+        // TODO: might be worth figuring out a way to allow infinite actions(need to do it
+        // without sacrificing efficiency too much)
+        if (self.num_actions[self.round as usize] + game_info.num_players) as usize > MAX_NUM_ACTIONS {
+            warn!("Making raise invalid since possible actions {} > MAX_NUM_ACTIONS", self.num_actions[self.round as usize] + game_info.num_players);
+            return (0, 0);
+        }
+
+        if self.num_active_players(game_info) <= 1 {
+            return (0, 0);
+        }
+
+
+        match game_info.betting_type {
+            BettingType::Limit => {
+                warn!("raise_range called with limit betting type!");
+                (0, 0)
+            }, // TODO: maybe change this here
+            BettingType::NoLimit => {
+                let mut min_raise = self.min_no_limit_raise_to;
+                let max_raise = self.stack_player[self.active_player as usize];
+                if self.stack_player[self.active_player as usize] < self.min_no_limit_raise_to {
+                    if self.max_spent >= self.stack_player[self.active_player as usize] {
+                        return (0, 0);
+                    } else {
+                        min_raise = max_raise;
+                    }
+                }
+
+                (min_raise, max_raise)
+            }
+        }
+
+    }
+
+    pub fn is_valid_action(&self, game_info: &GameInfo, action: Action) -> bool{
+        if self.finished {
+            return false;
+        }
+
+        match action {
+            Action::Fold => {
+                // TODO: determine whether to consider premature folding(ie folding when all bets
+                // are called) a "valid" action, right now only prevents folding when all-in
+                if self.spent[self.active_player as usize] == self.stack_player[self.active_player as usize] {
+                    return false;
+                }
+
+                true
+            },
+            Action::Call => true,
+            Action::Raise(r) => {
+                match game_info.betting_type {
+                    BettingType::Limit => r == game_info.raise_sizes[self.round as usize],
+                    BettingType::NoLimit => {
+                        let (min_raise, max_raise) = self.raise_range(game_info);
+                        r >= min_raise && r <= max_raise
+                    }
+                }
+            },
+        }
     }
 }
 
