@@ -4,6 +4,10 @@
 
 use log::warn;
 
+use super::action_abstraction::{
+    AbstractRaise, AbstractRaiseType, RaiseRoundConfig
+};
+
 use poker::Card;
 
 use serde::{Deserialize, Serialize};
@@ -25,7 +29,7 @@ pub enum BettingType {
 }
 
 /// Represents possible actions
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Action {
     Fold,
     Call,
@@ -272,6 +276,28 @@ impl GameState {
                 }
             },
         }
+    }
+    
+    /// Converts abstract raise to a real raise if it is valid
+    pub fn abstract_raise_to_real(&self, game_info: &GameInfo, abstract_raise: &AbstractRaise) -> Option<Action> {
+        match abstract_raise.round_config[self.round as usize] {
+            RaiseRoundConfig::Always => {},
+            RaiseRoundConfig::Before(i) if i > self.num_raises() as u32 => {},
+            _ => return None,
+        }
+
+        let raise = match abstract_raise.raise_type {
+            AbstractRaiseType::AllIn => Action::Raise(self.stack_player[self.active_player as usize]),
+            AbstractRaiseType::Fixed(i) => Action::Raise(i),
+            //TODO: Check below is correct
+            AbstractRaiseType::PotRatio(r) => Action::Raise((self.max_spent as f32 * r) as u32),
+        };
+
+        if self.is_valid_action(game_info, raise) {
+            return Some(raise);
+        }
+        
+        None
     }
 }
 

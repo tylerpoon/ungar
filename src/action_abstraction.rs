@@ -26,8 +26,8 @@ pub enum RaiseRoundConfig {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct AbstractRaise {
-    raise_type: AbstractRaiseType,
-    round_config: Vec<RaiseRoundConfig>,
+    pub raise_type: AbstractRaiseType,
+    pub round_config: Vec<RaiseRoundConfig>,
 }
 
 /// Used to generate possible abstract actions for a given state
@@ -57,23 +57,16 @@ impl ActionAbstraction {
             actions.push(Action::Call);
         }
 
-        let mut raises = Vec::new();  //TODO: this pattern might be inefficient
-        let num_raises = game_state.num_raises();
-        for raise in &self.possible_raises {
-            match raise.round_config[game_state.current_round() as usize] {
-                RaiseRoundConfig::Always => {
-                    raises.push(raise);
+        for abstract_raise in &self.possible_raises {
+            match game_state.abstract_raise_to_real(game_info, abstract_raise) {
+                Some(raise) => {
+                    if !actions.contains(&raise) {
+                        actions.push(raise);
+                    }
                 },
-                RaiseRoundConfig::Before(i) if i > num_raises as u32 => {
-                    raises.push(raise);
-                },
-                _ => {},
+                None => {},
             }
         }
-
-        //TODO: covert abstract raises to "real" raises(not sure how much fixing/fudging will be
-        //allowed here)
-        
 
         actions
     }
