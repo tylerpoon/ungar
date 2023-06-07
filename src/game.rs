@@ -73,6 +73,22 @@ impl GameInfo {
         assert!(game_info.num_board_cards.len() as u8 == game_info.num_rounds);
         game_info
     }
+
+    pub fn num_suits(&self) -> u8 {
+        self.num_suits
+    }
+
+    pub fn num_ranks(&self) -> u8 {
+        self.num_ranks
+    }
+
+    pub fn num_hole_cards(&self) -> u8 {
+        self.num_hole_cards
+    }
+
+    pub fn num_board_cards(&self, round: u8) -> u8 {
+        self.num_board_cards[round as usize]
+    }
 }
 
 /// Represents the state of a poker game
@@ -101,8 +117,8 @@ pub struct GameState {
     finished: bool,
     /// Which players have folded
     players_folded: [bool; MAX_PLAYERS],
-    board_cards: [Option<Card>; MAX_BOARD_CARDS],
-    hole_cards: [[Option<Card>; MAX_HOLE_CARDS]; MAX_PLAYERS],
+    board_cards: Vec<Card>,
+    hole_cards: [Vec<Card>; MAX_PLAYERS],
 }
 
 impl GameState {
@@ -147,8 +163,8 @@ impl GameState {
             round: 0,
             finished: false,
             players_folded,
-            board_cards: [None; MAX_BOARD_CARDS],
-            hole_cards: [[None; MAX_HOLE_CARDS]; MAX_PLAYERS],
+            board_cards: Vec::new(),
+            hole_cards: [(); MAX_PLAYERS].map(|_| Vec::new()),
         }
     }
 
