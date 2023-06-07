@@ -2,7 +2,7 @@ use super::game::GameInfo;
 
 use poker::Card;
 
-type BucketId = u32;
+pub type BucketId = u32;
 
 pub struct CardAbstraction {
     round_infosets: Vec<Box<dyn RoundBuckets>>,

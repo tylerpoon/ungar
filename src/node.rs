@@ -1,5 +1,5 @@
 use super::{
-    game::{ ActionId, GameState },
+    game::{ Action, GameState },
 };
 
 use std::collections::BTreeMap;
@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 pub type NodeId = usize;
 
 pub struct Node {
-    children: BTreeMap<ActionId, NodeId>,
+    children: BTreeMap<Action, NodeId>,
     state: GameState,
 }
 

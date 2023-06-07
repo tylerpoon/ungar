@@ -6,6 +6,8 @@ fn main() {
     let game_info = game::GameInfo::load_game_info(path);
     let starting_state = game::GameState::new(&game_info, 0);
     let action_abstraction = action_abstraction::ActionAbstraction::from_config("game_configs/kuhn_action_abstraction.json");
+    let buckets = card_abstraction::NoBuckets::new(&game_info, 0);
+    let card_abstraction = card_abstraction::CardAbstraction::new(vec!(Box::new(buckets)));
 
     println!("{:?}", action_abstraction.get_actions(&game_info, &starting_state));
 

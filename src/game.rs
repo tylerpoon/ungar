@@ -29,14 +29,12 @@ pub enum BettingType {
 }
 
 /// Represents possible actions
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 pub enum Action {
     Fold,
     Call,
     Raise(u32),
 }
-
-pub type ActionId = usize;
 
 pub type PlayerId = u8;
 
