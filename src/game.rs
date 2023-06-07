@@ -59,6 +59,7 @@ pub struct GameInfo {
     num_suits: u8,
     num_ranks: u8,
     num_hole_cards: u8,
+    /// Board cards added each round
     num_board_cards: Vec<u8>,
 }
 
@@ -86,8 +87,12 @@ impl GameInfo {
         self.num_hole_cards
     }
 
-    pub fn num_board_cards(&self, round: u8) -> u8 {
-        self.num_board_cards[round as usize]
+    pub fn total_board_cards(&self, round: u8) -> u8 {
+        let mut total = 0;
+        for i in 0..round {
+            total += self.num_board_cards[i as usize];
+        }
+        total
     }
 }
 

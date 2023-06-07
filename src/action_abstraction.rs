@@ -58,13 +58,10 @@ impl ActionAbstraction {
         }
 
         for abstract_raise in &self.possible_raises {
-            match game_state.abstract_raise_to_real(game_info, abstract_raise) {
-                Some(raise) => {
-                    if !actions.contains(&raise) {
-                        actions.push(raise);
-                    }
-                },
-                None => {},
+            if let Some(raise) = game_state.abstract_raise_to_real(game_info, abstract_raise) {
+                if !actions.contains(&raise) {
+                    actions.push(raise);
+                }
             }
         }
 
