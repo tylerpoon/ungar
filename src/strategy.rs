@@ -47,3 +47,29 @@ impl Strategy {
         Some(action_to_float_map)
     }
 }
+
+pub struct Regrets {
+    /// By pluribus, regret floor should be -310,000,000
+    regrets: BTreeMap<(NodeId, BucketId), BTreeMap<Action, i32>>,
+}
+
+
+impl Regrets {
+    pub fn new() -> Regrets {
+        Regrets { regrets: BTreeMap::new() }
+    }
+
+    pub fn add_infoset(&mut self, node_id: NodeId, bucket_id: BucketId, actions: Vec<Action>) {
+        let mut action_map: BTreeMap<Action, i32> = BTreeMap::new();
+
+        for action in actions {
+            action_map.insert(action, 0);
+        }
+
+        self.regrets.insert((node_id, bucket_id), action_map);
+    }
+
+    pub fn get_infoset(&self, node_id: NodeId, bucket_id: BucketId) -> Option<BTreeMap<Action, i32>> {
+        self.regrets.get(&(node_id, bucket_id)).cloned()
+    }
+}
