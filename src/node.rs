@@ -7,8 +7,8 @@ use std::collections::BTreeMap;
 pub type NodeId = usize;
 
 pub struct Node {
-    children: BTreeMap<Action, NodeId>,
-    state: GameState,
+    pub children: BTreeMap<Action, NodeId>,
+    pub state: GameState,
 }
 
 impl Node {

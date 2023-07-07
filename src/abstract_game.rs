@@ -11,8 +11,8 @@ pub struct AbstractGame {
     game_info: GameInfo,
     nodes: BTreeMap<NodeId, Node>,
     root: NodeId,
-    action_abstraction: ActionAbstraction,
-    card_abstraction: CardAbstraction,
+    pub action_abstraction: ActionAbstraction,
+    pub card_abstraction: CardAbstraction,
 }
 
 impl AbstractGame {
@@ -28,5 +28,13 @@ impl AbstractGame {
             action_abstraction,
             card_abstraction,
         }
+    }
+
+    pub fn get_node(&self, node_id: NodeId) -> Option<&Node> {
+        self.nodes.get(&node_id)
+    }
+
+    pub fn get_actions(&self, game_state: &GameState) -> Vec<Action> {
+        self.action_abstraction.get_actions(&self.game_info, game_state)
     }
 }
