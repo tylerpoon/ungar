@@ -1,14 +1,14 @@
 use super::{
     action_abstraction::{ActionAbstraction},
     card_abstraction::CardAbstraction,
-    game::{GameInfo, GameState},
+    game::{Action, GameInfo, GameState},
     node::{Node, NodeId},
 };
 
 use std::collections::BTreeMap;
 
 pub struct AbstractGame {
-    game_info: GameInfo,
+    pub game_info: GameInfo,
     nodes: BTreeMap<NodeId, Node>,
     root: NodeId,
     pub action_abstraction: ActionAbstraction,

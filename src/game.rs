@@ -15,11 +15,11 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::option::Option;
 
-const MAX_PLAYERS: usize = 22;
-const MAX_ROUNDS: usize = 4;
-const MAX_NUM_ACTIONS: usize = 32;
-const MAX_BOARD_CARDS: usize = 7;
-const MAX_HOLE_CARDS: usize = 5;
+pub const MAX_PLAYERS: usize = 22;
+pub const MAX_ROUNDS: usize = 4;
+pub const MAX_NUM_ACTIONS: usize = 32;
+pub const MAX_BOARD_CARDS: usize = 7;
+pub const MAX_HOLE_CARDS: usize = 5;
 
 /// Betting types of a poker game
 #[derive(Debug, Deserialize, Serialize)]
@@ -83,6 +83,10 @@ impl GameInfo {
 
     pub fn num_hole_cards(&self) -> u8 {
         self.num_hole_cards
+    }
+
+    pub fn num_players(&self) -> PlayerId {
+        self.num_players
     }
 
     pub fn total_board_cards(&self, round: u8) -> u8 {
@@ -213,6 +217,16 @@ impl GameState {
         }
 
         Ok(p)
+    }
+
+    /// Returns if state is finished(ie terminal state)
+    pub fn is_finished(&self) -> bool {
+        self.finished
+    }
+
+    /// Returns if player has folded
+    pub fn has_folded(&self, player: PlayerId) -> bool {
+        self.players_folded[player as usize]
     }
 
     /// Returns number of raises made in this round
