@@ -332,5 +332,10 @@ impl GameState {
         
         None
     }
+    
+    /// Returns a new state with that action applied, DOES NOT update cards(this may be something
+    /// that gets refactored later).
+    pub fn apply_action_no_cards(&self, action: Action) -> GameState {
+    }
 }
 

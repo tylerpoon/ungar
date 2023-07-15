@@ -86,6 +86,7 @@ impl CFREngine {
         if current_node.state.is_finished() || current_node.state.has_folded(player) || current_node.state.current_round() > 0 {
             return;
         } else if current_node.state.current_player().unwrap() == player {
+            //TODO sampling actions and all that good stuff
         } else {
             let actions = self.abstract_game.get_actions(&current_node.state);
             for action in actions {
@@ -108,20 +109,29 @@ impl CFREngine {
         // TODO: don't unwrap, actually handle errors properly
         let current_node = self.abstract_game.get_node(node_id).unwrap();
 
-        let round = current_node.state.current_round();
+        if current_node.state.is_finished() {
+            //return terminal value
+        } else if current_node.state.has_folded(player) {
+            //return traverse_mccfr(h*0, P_i)
+        } else if current_node.state.current_player().unwrap() == player {
+            //TODO
+        } else {
+            //TODO
+        }
+    }
 
-        let bucket_id = self.abstract_game.card_abstraction.get_bucket(round, &board_cards, &hole_cards[player as usize]);
 
-        let actions = self.abstract_game.get_actions(&current_node.state);
+    pub fn traverse_mccrfr_p(&mut self, node_id: NodeId, board_cards: Vec<Card>, hole_cards: [Vec<Card>; MAX_PLAYERS], player: PlayerId) {
+        let current_node = self.abstract_game.get_node(node_id).unwrap();
 
-        let regret = match self.regrets.get_infoset(node_id, bucket_id) {
-            Some(r) => r,
-            None => { 
-                self.regrets.add_infoset(node_id, bucket_id, actions);
-                self.regrets.get_infoset(node_id, bucket_id).unwrap()
-            },
-        };
-
-        //TODO from here 
+        if current_node.state.is_finished() {
+            //return reminal value
+        } else if current_node.state.has_folded(player) {
+            //return traverse_mccfr_p(h*0, P_i)
+        } else if current_node.state.current_player().unwrap() == player {
+            //TODO
+        } else {
+            //TODO
+        }
     }
 }
