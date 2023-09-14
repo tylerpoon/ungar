@@ -59,7 +59,7 @@ impl CFREngine {
         }
     }
 
-    pub fn calculate_strategy(regrets: BTreeMap<Action, i32>) -> BTreeMap<Action, f32> {
+    pub fn calculate_strategy(regrets: &BTreeMap<Action, i32>) -> BTreeMap<Action, f32> {
         let mut sum = 0;
         for v in regrets.values() {
             if *v > 0 {
@@ -102,10 +102,22 @@ impl CFREngine {
             return;
         } else if current_node.state.current_player().unwrap() == player {
             let bucket_id = self.abstract_game.get_bucket(current_node.state.current_round(), &board_cards, &hole_cards[player as usize]);
-            let strategy = CFREngine::calculate_strategy(self.regrets.get_infoset(node_id, bucket_id).unwrap());
-            let action = CFREngine::sample_strategy(strategy);
+            let sigma = CFREngine::calculate_strategy(self.regrets.get_infoset(node_id, bucket_id).unwrap());
+            let action = CFREngine::sample_strategy(sigma);
 
-            //TODO: increment action counter? not sure what the use fo this is yet
+            // Add one to action counter
+            self.strategy.entry_infoset(node_id, bucket_id)
+                .and_modify(|s| { let _ = *s.entry(action).and_modify(|x| *x += 1).or_insert(0); })
+                .or_insert_with(|| {
+                    let mut action_map: BTreeMap<Action, i32> = BTreeMap::new();
+
+                    for a in self.abstract_game.get_actions(&current_node.state) {
+                        action_map.insert(a, 0); // inserts with uniform distribution
+                    }
+                    action_map.insert(action, 1);
+                    action_map
+                });
+
             let mut child_board_cards = board_cards.clone();
             let child_node_id = self.abstract_game.apply_action_to_node(node_id, &mut child_board_cards, hole_cards, action);
             self.update_strategy(child_node_id, child_board_cards, hole_cards, player);

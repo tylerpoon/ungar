@@ -288,7 +288,7 @@ impl GameState {
             return (0, 0);
         }
 
-        // TODO: might be worth figuring out a way to allow infinite actions(need to do it
+        // CHECK: might be worth figuring out a way to allow infinite actions(need to do it
         // without sacrificing efficiency too much)
         if (self.num_actions[self.round as usize] + game_info.num_players) as usize > MAX_NUM_ACTIONS {
             warn!("Making raise invalid since possible actions {} > MAX_NUM_ACTIONS", self.num_actions[self.round as usize] + game_info.num_players);
@@ -304,7 +304,7 @@ impl GameState {
             BettingType::Limit => {
                 warn!("raise_range called with limit betting type!");
                 (0, 0)
-            }, // TODO: maybe change this here
+            }, // CHECK: maybe change this here
             BettingType::NoLimit => {
                 let mut min_raise = self.min_no_limit_raise_to;
                 let max_raise = self.stack_player[self.active_player as usize];
@@ -329,7 +329,7 @@ impl GameState {
 
         match action {
             Action::Fold => {
-                // TODO: determine whether to consider premature folding(ie folding when all bets
+                // CHECK: determine whether to consider premature folding(ie folding when all bets
                 // are called) a "valid" action, right now only prevents folding when all-in
                 if self.spent[self.active_player as usize] == self.stack_player[self.active_player as usize] {
                     return false;
@@ -366,7 +366,7 @@ impl GameState {
                     BettingType::Limit => Action::Raise(i)
                 }
             },
-            //TODO: Check below is correct
+            //CHECK: Check below is correct
             AbstractRaiseType::PotRatio(r) => Action::Raise((self.max_spent as f32 * r) as u32),
         };
 
@@ -434,8 +434,6 @@ impl GameState {
                 new_state.sum_round_spent[new_state.round as usize][player as usize] = new_state.max_spent;
             }
         };
-
-        //TODO: change rounds etc
 
         if new_state.num_folded(game_info) + 1>= game_info.num_players() {
             new_state.finished = true;
