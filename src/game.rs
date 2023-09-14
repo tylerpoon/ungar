@@ -204,6 +204,41 @@ impl GameState {
         count
     }
 
+    /// Returns players who have called
+    pub fn num_called(&self, game_info: &GameInfo) -> u8 {
+        let mut count = 0;
+
+        for i in (0..self.num_actions[self.round as usize]).rev() {
+            let player = self.acting_player[self.round as usize][i as usize];
+
+            if matches!(self.action[self.round as usize][i as usize].unwrap(), Action::Raise(_)) {
+                if self.spent[player as usize] < self.stack_player[player as usize] {
+                    count += 1;
+                }
+
+                return count;
+            } else if self.action[self.round as usize][i as usize].unwrap() == Action::Call {
+                if self.spent[player as usize] < self.stack_player[player as usize] {
+                    count += 1;
+                }
+            }
+        }
+
+        count
+    }
+
+    /// Returns players who have folded
+    pub fn num_folded(&self, game_info: &GameInfo) -> u8 {
+        let mut count = 0;
+        for i in 0..game_info.num_players() {
+            if self.has_folded(i) {
+                count += 1;
+            }
+        }
+
+        count
+    }
+
     /// Returns next player after active_player
     fn next_player(&self, game_info: &GameInfo) -> Result<PlayerId, &'static str> {
         if self.finished {
@@ -325,7 +360,12 @@ impl GameState {
 
         let raise = match abstract_raise.raise_type {
             AbstractRaiseType::AllIn => Action::Raise(self.stack_player[self.active_player as usize]),
-            AbstractRaiseType::Fixed(i) => Action::Raise(i),
+            AbstractRaiseType::Fixed(i) => {
+                match game_info.betting_type {
+                    BettingType::NoLimit => Action::Raise(self.max_spent + i),
+                    BettingType::Limit => Action::Raise(i)
+                }
+            },
             //TODO: Check below is correct
             AbstractRaiseType::PotRatio(r) => Action::Raise((self.max_spent as f32 * r) as u32),
         };
@@ -339,11 +379,88 @@ impl GameState {
     
     /// Returns a new state with that action applied, DOES NOT update cards(this may be something
     /// that gets refactored later).
-    pub fn apply_action_no_cards(&self, action: Action) -> GameState {
+    pub fn apply_action_no_cards(&self, game_info: &GameInfo, action: Action) -> Result<GameState, &'static str> {
         let mut new_state = self.clone();
 
-        //TODO: apply the action lmao
-        new_state
+        if self.is_finished() {
+            return Err("cannot apply action to finished state");
+        }
+
+        if self.num_actions[self.round as usize] >= MAX_NUM_ACTIONS as u8 {
+            return Err("cannot apply action to state: already at max actions for this round");
+        }
+
+        if self.is_valid_action(game_info, action) == false {
+            return Err("cannot apply an invalid action");
+        }
+
+        let player = self.current_player().unwrap();
+
+        new_state.action[self.round as usize][self.num_actions[self.round as usize] as usize] = Some(action);
+        new_state.acting_player[self.round as usize][self.num_actions[self.round as usize] as usize] = player;
+        new_state.num_actions[self.round as usize] += 1;
+
+        match action {
+            Action::Fold => {
+                new_state.players_folded[player as usize] = true;
+            },
+            Action::Call => {
+                if new_state.max_spent > new_state.stack_player[player as usize] {
+                    new_state.spent[player as usize] = new_state.stack_player[player as usize];
+                    new_state.sum_round_spent[self.round as usize][player as usize] = new_state.stack_player[player as usize];
+                } else {
+                    new_state.spent[player as usize] = new_state.max_spent;
+                    new_state.sum_round_spent[self.round as usize][player as usize] = new_state.max_spent;
+                }
+            },
+            Action::Raise(r) => {
+                match game_info.betting_type {
+                    BettingType::NoLimit => {
+                        if r * 2 - new_state.max_spent > new_state.min_no_limit_raise_to {
+                            new_state.min_no_limit_raise_to = r * 2 - new_state.max_spent;
+                        }
+                        new_state.max_spent = r;
+                    },
+                    BettingType::Limit => {
+                        if new_state.max_spent + game_info.raise_sizes[new_state.round as usize] > new_state.stack_player[player as usize] {
+                            new_state.max_spent = new_state.stack_player[player as usize];
+                        } else {
+                            new_state.max_spent += game_info.raise_sizes[new_state.round as usize];
+                        }
+                    },
+                };
+
+                new_state.spent[player as usize] = new_state.max_spent;
+                new_state.sum_round_spent[new_state.round as usize][player as usize] = new_state.max_spent;
+            }
+        };
+
+        //TODO: change rounds etc
+
+        if new_state.num_folded(game_info) + 1>= game_info.num_players() {
+            new_state.finished = true;
+        } else if new_state.num_called(game_info) >= new_state.num_active_players(game_info) {
+            if new_state.num_active_players(game_info) > 1 {
+                if new_state.round + 1 > game_info.num_rounds {
+                    new_state.round += 1;
+                    new_state.min_no_limit_raise_to = 1;
+                    for i in 0..game_info.num_players() {
+                        if game_info.blinds[i as usize] > new_state.min_no_limit_raise_to {
+                            new_state.min_no_limit_raise_to = game_info.blinds[i as usize];
+                        }
+                    }
+                    new_state.min_no_limit_raise_to += new_state.max_spent;
+                } else {
+                    new_state.finished = true;
+                }
+            } else {
+                // skip to showdown
+                new_state.finished = true;
+                new_state.round = game_info.num_rounds - 1;
+            }
+        }
+
+        Ok(new_state)
     }
 }
 

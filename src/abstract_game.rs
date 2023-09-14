@@ -67,8 +67,8 @@ impl AbstractGame {
                 //function just for this that updates cards as necessary, although kind of
                 //a clunky design)
                 
-                let num_new_cards = self.game_info.num_board_cards(self.get_node(*child_node_id).unwrap().state.current_round());
-
+                let num_new_cards = self.game_info.total_board_cards(self.get_node(*child_node_id).unwrap().state.current_round()) - board_cards.len() as u8;
+                
                 if num_new_cards > 0 {
                     //TODO: Deal in a not terrible way
                     let dealt = [board_cards.clone(), hole_cards.concat()].concat();
@@ -79,9 +79,9 @@ impl AbstractGame {
                 *child_node_id
             },
             None => {
-                let new_node = Node::new(current_node.state.apply_action_no_cards(action));
+                let new_node = Node::new(current_node.state.apply_action_no_cards(&self.game_info, action).unwrap());
 
-                let num_new_cards = self.game_info.num_board_cards(new_node.state.current_round());
+                let num_new_cards = self.game_info.total_board_cards(new_node.state.current_round()) - board_cards.len() as u8;
 
                 if num_new_cards > 0 {
                     //TODO: Deal in a not terrible way
