@@ -89,6 +89,10 @@ impl GameInfo {
         self.num_players
     }
 
+    pub fn num_board_cards(&self, round: u8) -> u8 {
+        self.num_board_cards[round as usize]
+    }
+
     pub fn total_board_cards(&self, round: u8) -> u8 {
         let mut total = 0;
         for i in 0..round {
@@ -99,7 +103,7 @@ impl GameInfo {
 }
 
 /// Represents the state of a poker game
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct GameState {
     hand_id: u32,
     /// Largest bet over all rounds so far
@@ -336,6 +340,10 @@ impl GameState {
     /// Returns a new state with that action applied, DOES NOT update cards(this may be something
     /// that gets refactored later).
     pub fn apply_action_no_cards(&self, action: Action) -> GameState {
+        let mut new_state = self.clone();
+
+        //TODO: apply the action lmao
+        new_state
     }
 }
 

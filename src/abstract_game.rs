@@ -1,6 +1,7 @@
 use super::{
     action_abstraction::{ActionAbstraction},
-    card_abstraction::CardAbstraction,
+    card_abstraction::{BucketId, CardAbstraction},
+    card_util::deal_without,
     game::{Action, GameInfo, GameState, MAX_PLAYERS},
     node::{Node, NodeId},
 };
@@ -42,6 +43,10 @@ impl AbstractGame {
         self.action_abstraction.get_actions(&self.game_info, game_state)
     }
 
+    pub fn get_bucket(&self, round:u8, board_cards: &Vec<Card>, hole_cards: &Vec<Card>) -> BucketId {
+        self.card_abstraction.get_bucket(round, board_cards, hole_cards)
+    }
+
     pub fn add_node(&mut self, node: Node) -> NodeId {
         let node_id = self.next_node_id;
         self.nodes.insert(self.next_node_id, node);
@@ -51,7 +56,7 @@ impl AbstractGame {
         node_id
     }
 
-    pub fn apply_action_to_node(&mut self, node_id: NodeId, board_cards: &mut Vec<Card>, hole_cards: &mut [Vec<Card>; MAX_PLAYERS], action: Action) -> NodeId {
+    pub fn apply_action_to_node(&mut self, node_id: NodeId, board_cards: &mut Vec<Card>, hole_cards: &[Vec<Card>; MAX_PLAYERS], action: Action) -> NodeId {
         //TODO not sure if updating cards here is better than elsewhere
 
         let current_node = self.get_node(node_id).unwrap();
@@ -61,12 +66,29 @@ impl AbstractGame {
                 //necessary after round changes(might be easier to make some apply_action
                 //function just for this that updates cards as necessary, although kind of
                 //a clunky design)
+                
+                let num_new_cards = self.game_info.num_board_cards(self.get_node(*child_node_id).unwrap().state.current_round());
+
+                if num_new_cards > 0 {
+                    //TODO: Deal in a not terrible way
+                    let dealt = [board_cards.clone(), hole_cards.concat()].concat();
+                    let mut new_board_cards = deal_without(num_new_cards as usize, &dealt);
+                    board_cards.append(&mut new_board_cards);
+                }
 
                 *child_node_id
             },
             None => {
                 let new_node = Node::new(current_node.state.apply_action_no_cards(action));
-                //TODO handle adding cards
+
+                let num_new_cards = self.game_info.num_board_cards(new_node.state.current_round());
+
+                if num_new_cards > 0 {
+                    //TODO: Deal in a not terrible way
+                    let dealt = [board_cards.clone(), hole_cards.concat()].concat();
+                    let mut new_board_cards = deal_without(num_new_cards as usize, &dealt);
+                    board_cards.append(&mut new_board_cards);
+                }
                 let node_id = self.add_node(new_node);
                 node_id
             }

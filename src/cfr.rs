@@ -80,26 +80,42 @@ impl CFREngine {
         strategy
     }
 
-    pub fn update_strategy(&mut self, node_id: NodeId, board_cards: Vec<Card>, hole_cards: [Vec<Card>; MAX_PLAYERS], player: PlayerId) {
+    fn sample_strategy(strategy: BTreeMap<Action, f32>) -> Action {
+        let mut rng = rand::thread_rng();
+        let num = rng.gen::<f32>();
+        let mut total = 0.;
+
+        for (k, v) in strategy.iter() {
+            if total <= num && num <= total + *v {
+                return *k;
+            }
+            total += *v;
+        }
+
+        Action::Fold
+    }
+
+    pub fn update_strategy(&mut self, node_id: NodeId, board_cards: Vec<Card>, hole_cards: &[Vec<Card>; MAX_PLAYERS], player: PlayerId) {
         let current_node = self.abstract_game.get_node(node_id).unwrap();
 
         if current_node.state.is_finished() || current_node.state.has_folded(player) || current_node.state.current_round() > 0 {
             return;
         } else if current_node.state.current_player().unwrap() == player {
-            //TODO sampling actions and all that good stuff
+            let bucket_id = self.abstract_game.get_bucket(current_node.state.current_round(), &board_cards, &hole_cards[player as usize]);
+            let strategy = CFREngine::calculate_strategy(self.regrets.get_infoset(node_id, bucket_id).unwrap());
+            let action = CFREngine::sample_strategy(strategy);
+
+            //TODO: increment action counter? not sure what the use fo this is yet
+            let mut child_board_cards = board_cards.clone();
+            let child_node_id = self.abstract_game.apply_action_to_node(node_id, &mut child_board_cards, hole_cards, action);
+            self.update_strategy(child_node_id, child_board_cards, hole_cards, player);
+     
         } else {
             let actions = self.abstract_game.get_actions(&current_node.state);
             for action in actions {
-                match current_node.children.get(&action) {
-                    Some(child_node_id) => {
-                        //TODO make sure to handle adding cards, ie update board cards when
-                        //necessary after round changes(might be easier to make some apply_action
-                        //function just for this that updates cards as necessary, although kind of
-                        //a clunky design)
-                    },
-                    None => {
-                    }
-                }
+                let mut child_board_cards = board_cards.clone();
+                let child_node_id = self.abstract_game.apply_action_to_node(node_id, &mut child_board_cards, hole_cards, action);
+                self.update_strategy(child_node_id, child_board_cards, hole_cards, player);
             }
         }
 
