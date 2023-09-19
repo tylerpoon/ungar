@@ -5,7 +5,7 @@
     "betting_type": "Limit",
     "num_players": 2,
     "num_rounds": 1,
-    "max_raises": [100],
+    "max_raises": [2],
     "first_player": [1],
     "num_suits": 1,
     "num_ranks": 3,

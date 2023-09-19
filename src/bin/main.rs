@@ -1,4 +1,4 @@
-use ungar::*;
+use ungar::{*, cfr::CFREngine, abstract_game::AbstractGame};
 
 fn main() {
     let path = "game_configs/kuhn.json";
@@ -9,9 +9,8 @@ fn main() {
     let buckets = card_abstraction::NoBuckets::new(&game_info, 0);
     let card_abstraction = card_abstraction::CardAbstraction::new(vec!(Box::new(buckets)));
 
-    println!("{:?}", action_abstraction.get_actions(&game_info, &starting_state));
+    let abstract_game = AbstractGame::new(game_info, starting_state, action_abstraction, card_abstraction);
+    let mut cfr_engine = CFREngine::new(abstract_game);
 
-    // println!("{:?}", game_info);
-    // println!("{:?}", starting_state);
-    // println!("{:?}", action_abstraction);
+    cfr_engine.mccfr_p(1500, 20, 400, 400, 400);
 }

@@ -100,6 +100,21 @@ impl GameInfo {
         }
         total
     }
+
+    pub fn deal_hole_cards(&self) -> [Vec<Card>; MAX_PLAYERS] {
+        let mut cards = [(); MAX_PLAYERS].map(|_| Vec::new());
+        let deck = Vec::from(Card::generate_shuffled_deck());
+        let mut c = 0;
+
+        for i in 0..self.num_players {
+            for _ in 0..self.num_hole_cards {
+                cards[i as usize].push(deck[c]);
+                c += 1;
+            }
+        }
+
+        cards
+    }
 }
 
 /// Represents the state of a poker game
@@ -339,6 +354,9 @@ impl GameState {
             },
             Action::Call => true,
             Action::Raise(r) => {
+                if self.num_raises() >= game_info.max_raises[self.round as usize] {
+                    return false;
+                }
                 match game_info.betting_type {
                     BettingType::Limit => r == game_info.raise_sizes[self.round as usize],
                     BettingType::NoLimit => {

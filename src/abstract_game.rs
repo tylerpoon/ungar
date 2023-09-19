@@ -35,6 +35,10 @@ impl AbstractGame {
         }
     }
 
+    pub fn get_root_node_id(&self) -> NodeId {
+        self.root
+    }
+
     pub fn get_node(&self, node_id: NodeId) -> Option<&Node> {
         self.nodes.get(&node_id)
     }
