@@ -13,13 +13,13 @@ impl CardAbstraction {
         CardAbstraction { round_infosets }
     }
 
-    pub fn get_bucket(&self, round: u8, board_cards: &Vec<Card>, hole_cards: &Vec<Card>) -> BucketId {
+    pub fn get_bucket(&self, round: u8, board_cards: &[Card], hole_cards: &[Card]) -> BucketId {
         self.round_infosets[round as usize].get_bucket(board_cards, hole_cards)
     }
 }
 
 pub trait RoundBuckets {
-    fn get_bucket(&self, board_cards: &Vec<Card>, hole_cards: &Vec<Card>) -> BucketId;
+    fn get_bucket(&self, board_cards: &[Card], hole_cards: &[Card]) -> BucketId;
 }
 
 pub struct NoBuckets {
@@ -41,7 +41,7 @@ impl NoBuckets {
 }
 
 impl RoundBuckets for NoBuckets {
-    fn get_bucket(&self, board_cards: &Vec<Card>, hole_cards: &Vec<Card>) -> BucketId {
+    fn get_bucket(&self, board_cards: &[Card], hole_cards: &[Card]) -> BucketId {
         let mut bucket: BucketId = 0;
         for i in 0..self.num_hole_cards {
             if i > 0 {
@@ -78,7 +78,7 @@ impl LosslessBuckets {
 }
 
 impl RoundBuckets for LosslessBuckets {
-    fn get_bucket(&self, board_cards: &Vec<Card>, hole_cards: &Vec<Card>) -> BucketId {
+    fn get_bucket(&self, board_cards: &[Card], hole_cards: &[Card]) -> BucketId {
         //TODO: implement lossless(suit isomprhims etc) abstraction, look at http://www.kevinwaugh.com/pdf/isomorphism13.pdf
         0
     }

@@ -10,6 +10,8 @@ use std::collections::BTreeMap;
 use rand::Rng;
 use rand::prelude::*;
 
+use log::info;
+
 use poker::Card;
 
 pub struct CFREngine {
@@ -93,12 +95,21 @@ impl CFREngine {
 
     pub fn update_strategy(&mut self, node_id: NodeId, board_cards: Vec<Card>, hole_cards: &[Vec<Card>; MAX_PLAYERS], player: PlayerId) {
         let current_node = self.abstract_game.get_node(node_id).unwrap();
+        info!("Updating strategy of node {node_id}");
 
         if current_node.state.is_finished() || current_node.state.has_folded(player) || current_node.state.current_round() > 0 {
             return;
         } else if current_node.state.current_player().unwrap() == player {
             let bucket_id = self.abstract_game.get_bucket(current_node.state.current_round(), &board_cards, &hole_cards[player as usize]);
-            let sigma = CFREngine::calculate_strategy(self.regrets.get(&(node_id, bucket_id)).unwrap_or(&BTreeMap::from([(Action::Fold, 0)])));
+            let regrets = self.regrets.entry((node_id, bucket_id))
+                .or_insert_with(|| {
+                    let mut regrets_map: BTreeMap<Action, i32> = BTreeMap::new();
+                    for a in self.abstract_game.get_actions(&current_node.state) {
+                        regrets_map.insert(a, 0); // inserts with uniform distribution
+                    }
+                    regrets_map
+                });
+            let sigma = CFREngine::calculate_strategy(regrets);
             let action = CFREngine::sample_strategy(&sigma);
 
             // Add one to action counter
@@ -130,7 +141,6 @@ impl CFREngine {
     }
 
     pub fn traverse_mccrfr(&mut self, node_id: NodeId, board_cards: Vec<Card>, hole_cards: [Vec<Card>; MAX_PLAYERS], player: PlayerId) {
-        // TODO: don't unwrap, actually handle errors properly
         let current_node = self.abstract_game.get_node(node_id).unwrap();
 
         if current_node.state.is_finished() {

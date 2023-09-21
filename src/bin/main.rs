@@ -1,6 +1,8 @@
 use ungar::{*, cfr::CFREngine, abstract_game::AbstractGame};
 
 fn main() {
+    env_logger::init();
+
     let path = "game_configs/kuhn.json";
 
     let game_info = game::GameInfo::load_game_info(path);

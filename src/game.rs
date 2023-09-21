@@ -453,7 +453,9 @@ impl GameState {
             }
         };
 
-        if new_state.num_folded(game_info) + 1>= game_info.num_players() {
+        new_state.active_player = self.next_player(game_info).unwrap();
+
+        if new_state.num_folded(game_info) + 1 >= game_info.num_players() {
             new_state.finished = true;
         } else if new_state.num_called(game_info) >= new_state.num_active_players(game_info) {
             if new_state.num_active_players(game_info) > 1 {
@@ -466,6 +468,10 @@ impl GameState {
                         }
                     }
                     new_state.min_no_limit_raise_to += new_state.max_spent;
+                    new_state.active_player = game_info.first_player[new_state.round as usize];
+                    while new_state.players_folded[new_state.active_player as usize] || new_state.spent[new_state.active_player as usize] >= new_state.stack_player[new_state.active_player as usize] {
+                        new_state.active_player = (new_state.active_player + 1) % game_info.num_players;
+                    }
                 } else {
                     new_state.finished = true;
                 }
@@ -477,6 +483,20 @@ impl GameState {
         }
 
         Ok(new_state)
+    }
+
+    pub fn get_payout(&self, game_info: &GameInfo, board_cards: &[Card], hole_cards: &[Vec<Card>; MAX_PLAYERS], player: PlayerId) -> i64 {
+        if self.has_folded(player) {
+            return  -(self.spent[player as usize] as i64);
+        }
+
+        if !self.is_finished() {
+            panic!("cannot calculate payout when the hand is not over or the player has not folded!");
+        }
+
+        //TODO: compute winners and calculate payout
+
+        return 0; 
     }
 }
 

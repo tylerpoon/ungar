@@ -61,12 +61,14 @@ impl AbstractGame {
     }
 
     pub fn apply_action_to_node(&mut self, node_id: NodeId, board_cards: &mut Vec<Card>, hole_cards: &[Vec<Card>; MAX_PLAYERS], action: Action) -> NodeId {
-        //CHECK: not sure if updating cards here is better than elsewhere
+        //TODO: not sure if updating cards here is better than elsewhere. in fact, might be better
+        //to generate ALL board cards in advance, and then just control access based on round, in
+        //this way extra clones of board cards are avoided.
 
-        let current_node = self.get_node(node_id).unwrap();
+        let current_node = self.nodes.get(&node_id).unwrap();
         let child = match current_node.children.get(&action) {
             Some(child_node_id) => {
-                let num_new_cards = self.game_info.total_board_cards(self.get_node(*child_node_id).unwrap().state.current_round()) - board_cards.len() as u8;
+                let num_new_cards = self.game_info.total_board_cards(self.nodes.get(child_node_id).unwrap().state.current_round()) - board_cards.len() as u8;
                 
                 if num_new_cards > 0 {
                     let dealt = [board_cards.clone(), hole_cards.concat()].concat();
@@ -86,8 +88,9 @@ impl AbstractGame {
                     let mut new_board_cards = deal_without(num_new_cards as usize, &dealt);
                     board_cards.append(&mut new_board_cards);
                 }
-                let node_id = self.add_node(new_node);
-                node_id
+                let child_node_id = self.add_node(new_node);
+                self.nodes.get_mut(&node_id).unwrap().children.insert(action, child_node_id);
+                child_node_id
             }
         };
 
