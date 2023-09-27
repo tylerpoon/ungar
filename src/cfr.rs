@@ -12,12 +12,13 @@ use rand::prelude::*;
 
 use log::info;
 
-use poker::Card;
+use poker::{Card, Evaluator};
 
 pub struct CFREngine {
     abstract_game: AbstractGame,
     strategy: Strategy,
     regrets: Regrets,
+    evaluator: Evaluator,
 }
 
 impl CFREngine {
@@ -26,6 +27,7 @@ impl CFREngine {
             abstract_game,
             strategy: Strategy::new(),
             regrets: Regrets::new(), 
+            evaluator: Evaluator::new(),
         }
     }
 
@@ -140,11 +142,11 @@ impl CFREngine {
 
     }
 
-    pub fn traverse_mccrfr(&mut self, node_id: NodeId, board_cards: Vec<Card>, hole_cards: [Vec<Card>; MAX_PLAYERS], player: PlayerId) {
+    pub fn traverse_mccrfr(&mut self, node_id: NodeId, board_cards: Vec<Card>, hole_cards: [Vec<Card>; MAX_PLAYERS], player: PlayerId) -> i64 {
         let current_node = self.abstract_game.get_node(node_id).unwrap();
 
         if current_node.state.is_finished() {
-            //return terminal value
+            return current_node.state.get_payout(&self.abstract_game.game_info, &self.evaluator, &board_cards, &hole_cards, player);
         } else if current_node.state.has_folded(player) {
             //return traverse_mccfr(h*0, P_i)
         } else if current_node.state.current_player().unwrap() == player {
@@ -152,14 +154,16 @@ impl CFREngine {
         } else {
             //TODO
         }
+
+        return 0;
     }
 
 
-    pub fn traverse_mccrfr_p(&mut self, node_id: NodeId, board_cards: Vec<Card>, hole_cards: [Vec<Card>; MAX_PLAYERS], player: PlayerId) {
+    pub fn traverse_mccrfr_p(&mut self, node_id: NodeId, board_cards: Vec<Card>, hole_cards: [Vec<Card>; MAX_PLAYERS], player: PlayerId) -> i64 {
         let current_node = self.abstract_game.get_node(node_id).unwrap();
 
         if current_node.state.is_finished() {
-            //return reminal value
+            return current_node.state.get_payout(&self.abstract_game.game_info, &self.evaluator, &board_cards, &hole_cards, player);
         } else if current_node.state.has_folded(player) {
             //return traverse_mccfr_p(h*0, P_i)
         } else if current_node.state.current_player().unwrap() == player {
@@ -167,5 +171,6 @@ impl CFREngine {
         } else {
             //TODO
         }
+        return 0;
     }
 }

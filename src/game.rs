@@ -8,7 +8,7 @@ use super::action_abstraction::{
     AbstractRaise, AbstractRaiseType, RaiseRoundConfig
 };
 
-use poker::Card;
+use poker::{Card, Evaluator, Eval};
 
 use serde::{Deserialize, Serialize};
 
@@ -485,7 +485,7 @@ impl GameState {
         Ok(new_state)
     }
 
-    pub fn get_payout(&self, game_info: &GameInfo, board_cards: &[Card], hole_cards: &[Vec<Card>; MAX_PLAYERS], player: PlayerId) -> i64 {
+    pub fn get_payout(&self, game_info: &GameInfo, evaluator: &Evaluator, board_cards: &[Card], hole_cards: &[Vec<Card>; MAX_PLAYERS], player: PlayerId) -> i64 {
         if self.has_folded(player) {
             return  -(self.spent[player as usize] as i64);
         }
@@ -494,9 +494,104 @@ impl GameState {
             panic!("cannot calculate payout when the hand is not over or the player has not folded!");
         }
 
-        //TODO: compute winners and calculate payout
+        if self.num_folded(game_info) + 1 == game_info.num_players() {
+            let mut value = 0;
 
-        return 0; 
+            for i in 0..game_info.num_players() {
+                if i == player {
+                    continue;
+                }
+
+                value += self.spent[i as usize];
+            }
+
+            return value.into();
+        }
+
+        //TODO: showdown
+        let mut rank = vec![None; game_info.num_players().into()];
+        let mut spent = vec![0; game_info.num_players().into()];
+        let mut players_left: i64 = 0;
+        let mut player_idx: i64 = -1;
+
+        for i in 0..game_info.num_players() {
+            if self.spent[i as usize] == 0 {
+                continue;
+            }
+
+            if self.has_folded(i) {
+                rank[players_left as usize] = None;
+            } else {
+                if i == player {
+                    player_idx = players_left;
+                }
+
+                rank[players_left as usize] = Some(evaluator.evaluate([&hole_cards[i as usize][..], board_cards].concat()).expect("couldn't evaluate hand"));
+            }
+
+            spent[players_left as usize] = self.spent[i as usize];
+            players_left += 1;
+        }
+
+        assert!(players_left > 1);
+        assert!(player_idx > -1);
+
+        let mut player_idx = player_idx as usize;
+
+        let mut value: i64 = 0;
+
+        loop {
+            let mut size = u32::MAX;
+            let mut win_rank = Eval::WORST;
+            let mut num_winners: i64 = 0;
+
+            for i in 0..players_left {
+                assert!(spent[i as usize] > 0);
+
+                if spent[i as usize] < size {
+                    size = spent[i as usize];
+                }
+
+                if let Some(r) = rank[i as usize] {
+                    if r.is_better_than(win_rank) {
+                        win_rank = r;
+                        num_winners = 1;
+                    } else if r.is_equal_to(win_rank) {
+                        num_winners += 1;
+                    }
+                }
+            }
+
+            if rank[player_idx as usize].unwrap().is_equal_to(win_rank) {
+                value += (size as i64) * (players_left - num_winners) / num_winners;
+            } else {
+                value -= size as i64;
+            }
+
+            let mut new_players_left = 0;
+            for i in 0..players_left as usize {
+                spent[i] -= size;
+                if spent[i] == 0 {
+                    if i == player_idx as usize {
+                        return value;
+                    }
+
+                    continue;
+                }
+
+                if i == player_idx {
+                    player_idx = i;
+                }
+
+                if i != new_players_left {
+                    spent[new_players_left] = spent[i];
+                    spent[new_players_left] = spent[i];
+                }
+
+                new_players_left += 1;
+            }
+            players_left = new_players_left as i64;
+        }
     }
 }
 
