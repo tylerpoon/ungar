@@ -485,9 +485,9 @@ impl GameState {
         Ok(new_state)
     }
 
-    pub fn get_payout(&self, game_info: &GameInfo, evaluator: &Evaluator, board_cards: &[Card], hole_cards: &[Vec<Card>; MAX_PLAYERS], player: PlayerId) -> i64 {
+    pub fn get_payout(&self, game_info: &GameInfo, evaluator: &Evaluator, board_cards: &[Card], hole_cards: &[Vec<Card>; MAX_PLAYERS], player: PlayerId) -> i32 {
         if self.has_folded(player) {
-            return  -(self.spent[player as usize] as i64);
+            return  -(self.spent[player as usize] as i32);
         }
 
         if !self.is_finished() {
@@ -505,14 +505,14 @@ impl GameState {
                 value += self.spent[i as usize];
             }
 
-            return value.into();
+            //CHECK: maybe don't wanna do shit like this?
+            return i32::try_from(value).unwrap();
         }
 
-        //TODO: showdown
         let mut rank = vec![None; game_info.num_players().into()];
         let mut spent = vec![0; game_info.num_players().into()];
-        let mut players_left: i64 = 0;
-        let mut player_idx: i64 = -1;
+        let mut players_left: i32 = 0;
+        let mut player_idx: i32 = -1;
 
         for i in 0..game_info.num_players() {
             if self.spent[i as usize] == 0 {
@@ -538,12 +538,12 @@ impl GameState {
 
         let mut player_idx = player_idx as usize;
 
-        let mut value: i64 = 0;
+        let mut value: i32 = 0;
 
         loop {
             let mut size = u32::MAX;
             let mut win_rank = Eval::WORST;
-            let mut num_winners: i64 = 0;
+            let mut num_winners: i32 = 0;
 
             for i in 0..players_left {
                 assert!(spent[i as usize] > 0);
@@ -563,9 +563,9 @@ impl GameState {
             }
 
             if rank[player_idx as usize].unwrap().is_equal_to(win_rank) {
-                value += (size as i64) * (players_left - num_winners) / num_winners;
+                value += (size as i32) * (players_left - num_winners) / num_winners;
             } else {
-                value -= size as i64;
+                value -= size as i32;
             }
 
             let mut new_players_left = 0;
@@ -590,7 +590,7 @@ impl GameState {
 
                 new_players_left += 1;
             }
-            players_left = new_players_left as i64;
+            players_left = new_players_left as i32;
         }
     }
 }
