@@ -7,6 +7,7 @@ use super::{
 };
 
 use std::collections::BTreeMap;
+use std::cmp::max;
 use rand::Rng;
 use rand::prelude::*;
 
@@ -35,6 +36,7 @@ impl CFREngine {
         let num_players = self.abstract_game.game_info.num_players();
 
         for t in 0..ticks {
+            info!("Iteration {:?}", t);
             for i in 0..num_players {
                 if t % strategy_interval == 0 {
                     self.update_strategy(self.abstract_game.get_root_node_id(), Vec::new(), &self.abstract_game.game_info.deal_hole_cards(), i);
@@ -44,7 +46,7 @@ impl CFREngine {
                     if rng.gen::<f32>() < 0.05 {
                         self.traverse_mccrfr(self.abstract_game.get_root_node_id(), Vec::new(), &self.abstract_game.game_info.deal_hole_cards(), i);
                     } else {
-                        self.traverse_mccrfr_p(self.abstract_game.get_root_node_id(), Vec::new(),  self.abstract_game.game_info.deal_hole_cards(), i);
+                        self.traverse_mccrfr_p(self.abstract_game.get_root_node_id(), Vec::new(),  &self.abstract_game.game_info.deal_hole_cards(), i);
                     }
                 } else {
                     self.traverse_mccrfr(self.abstract_game.get_root_node_id(), Vec::new(), &self.abstract_game.game_info.deal_hole_cards(), i);
@@ -81,7 +83,7 @@ impl CFREngine {
         let length = regrets.len();
         for (k, v) in regrets.iter() {
             if sum > 0 {
-                strategy.insert(*k, *v as f32 / sum as f32);
+                strategy.insert(*k, max(*v, 0) as f32 / sum as f32);
             } else {
                 strategy.insert(*k, 1. / length as f32);
             }
@@ -97,7 +99,7 @@ impl CFREngine {
 
     pub fn update_strategy(&mut self, node_id: NodeId, board_cards: Vec<Card>, hole_cards: &[Vec<Card>; MAX_PLAYERS], player: PlayerId) {
         let current_node = self.abstract_game.get_node(node_id).unwrap();
-        info!("Updating strategy of node {node_id}");
+        debug!("Updating strategy of node {node_id}");
 
         if current_node.state.is_finished() || current_node.state.has_folded(player) || current_node.state.current_round() > 0 {
             return;
@@ -144,6 +146,8 @@ impl CFREngine {
 
     pub fn traverse_mccrfr(&mut self, node_id: NodeId, board_cards: Vec<Card>, hole_cards: &[Vec<Card>; MAX_PLAYERS], player: PlayerId) -> i32 {
         let current_node = self.abstract_game.get_node(node_id).unwrap();
+
+        debug!("traverse_mccfr at node {node_id}");
 
         if current_node.state.is_finished() {
             return current_node.state.get_payout(&self.abstract_game.game_info, &self.evaluator, &board_cards, &hole_cards, player);
@@ -206,18 +210,76 @@ impl CFREngine {
     }
 
 
-    pub fn traverse_mccrfr_p(&mut self, node_id: NodeId, board_cards: Vec<Card>, hole_cards: [Vec<Card>; MAX_PLAYERS], player: PlayerId) -> i32 {
+    pub fn traverse_mccrfr_p(&mut self, node_id: NodeId, board_cards: Vec<Card>, hole_cards: &[Vec<Card>; MAX_PLAYERS], player: PlayerId) -> i32 {
         let current_node = self.abstract_game.get_node(node_id).unwrap();
+
+        debug!("traverse_mccfr_p at node {node_id}");
 
         if current_node.state.is_finished() {
             return current_node.state.get_payout(&self.abstract_game.game_info, &self.evaluator, &board_cards, &hole_cards, player);
         } else if current_node.state.has_folded(player) {
-            //return traverse_mccfr_p(h*0, P_i)
+            //CHECK: this is what they do in paper return traverse_mccfr(h*0, P_i), but I think
+            //this makes more sense
+            return current_node.state.get_payout(&self.abstract_game.game_info, &self.evaluator, &board_cards, &hole_cards, player);
         } else if current_node.state.current_player().unwrap() == player {
-            //TODO
+            let bucket_id = self.abstract_game.get_bucket(current_node.state.current_round(), &board_cards, &hole_cards[player as usize]);
+            let regrets = self.regrets.entry((node_id, bucket_id))
+                .or_insert_with(|| {
+                    let mut regrets_map: BTreeMap<Action, i32> = BTreeMap::new();
+                    for a in self.abstract_game.get_actions(&current_node.state) {
+                        regrets_map.insert(a, 0); // inserts with uniform distribution
+                    }
+                    regrets_map
+                });
+            let sigma = CFREngine::calculate_strategy(regrets);
+
+            let mut v = 0.;
+            let mut value_map: BTreeMap<Action, i32> = BTreeMap::new();
+
+            // CHECK: way to do this without clone and the borrow rules working
+            let regrets = regrets.clone();
+
+            let actions = self.abstract_game.get_actions(&current_node.state);
+            for action in &actions {
+                if *regrets.get(action).unwrap_or(&0) > -300000000 {
+                    let mut child_board_cards = board_cards.clone();
+                    let child_node_id = self.abstract_game.apply_action_to_node(node_id, &mut child_board_cards, hole_cards, *action);
+                    value_map.insert(*action, self.traverse_mccrfr_p(child_node_id, child_board_cards, hole_cards, player));
+                    v += *sigma.get(action).unwrap_or(&0.) * (*value_map.get(action).unwrap() as f32);
+                }
+            }
+
+            let v = v.round() as i32;
+
+            self.regrets.entry((node_id, bucket_id))
+                .and_modify(|r| {
+                    for action in actions {
+                        r.entry(action).and_modify(|regret| {
+                            if let Some(x) = value_map.get(&action) {
+                                *regret += x - v;
+                            }
+                        });
+                    }
+                });
+            
+            return v;
         } else {
-            //TODO
+            let bucket_id = self.abstract_game.get_bucket(current_node.state.current_round(), &board_cards, &hole_cards[player as usize]);
+
+            let regrets = self.regrets.entry((node_id, bucket_id))
+                .or_insert_with(|| {
+                    let mut regrets_map: BTreeMap<Action, i32> = BTreeMap::new();
+                    for a in self.abstract_game.get_actions(&current_node.state) {
+                        regrets_map.insert(a, 0); // inserts with uniform distribution
+                    }
+                    regrets_map
+                });
+            let sigma = CFREngine::calculate_strategy(regrets);
+            let action = CFREngine::sample_strategy(&sigma);
+
+            let mut child_board_cards = board_cards.clone();
+            let child_node_id = self.abstract_game.apply_action_to_node(node_id, &mut child_board_cards, hole_cards, action);
+            return self.traverse_mccrfr_p(child_node_id, child_board_cards, hole_cards, player);
         }
-        return 0;
     }
 }

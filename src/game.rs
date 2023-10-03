@@ -8,7 +8,7 @@ use super::action_abstraction::{
     AbstractRaise, AbstractRaiseType, RaiseRoundConfig
 };
 
-use poker::{Card, Evaluator, Eval};
+use poker::{Card, Evaluator, Eval, EvalClass};
 
 use serde::{Deserialize, Serialize};
 
@@ -526,7 +526,15 @@ impl GameState {
                     player_idx = players_left;
                 }
 
-                rank[players_left as usize] = Some(evaluator.evaluate([&hole_cards[i as usize][..], board_cards].concat()).expect("couldn't evaluate hand"));
+                let cards = [&hole_cards[i as usize][..], board_cards].concat();
+
+                // CHECK: Special case for Kuhn poker, I should check that EvalClass is enough to
+                // compare hands
+                if cards.len() == 1 {
+                    rank[players_left as usize] = Some(EvalClass::HighCard { high_rank: cards[0].rank() });
+                } else {
+                    rank[players_left as usize] = Some(evaluator.evaluate(cards).expect("couldn't evaluate hand").class());
+                }
             }
 
             spent[players_left as usize] = self.spent[i as usize];
@@ -542,7 +550,7 @@ impl GameState {
 
         loop {
             let mut size = u32::MAX;
-            let mut win_rank = Eval::WORST;
+            let mut win_rank = Eval::WORST.class();
             let mut num_winners: i32 = 0;
 
             for i in 0..players_left {
@@ -553,16 +561,16 @@ impl GameState {
                 }
 
                 if let Some(r) = rank[i as usize] {
-                    if r.is_better_than(win_rank) {
+                    if r > win_rank {
                         win_rank = r;
                         num_winners = 1;
-                    } else if r.is_equal_to(win_rank) {
+                    } else if r == win_rank {
                         num_winners += 1;
                     }
                 }
             }
 
-            if rank[player_idx as usize].unwrap().is_equal_to(win_rank) {
+            if rank[player_idx as usize].unwrap()== win_rank {
                 value += (size as i32) * (players_left - num_winners) / num_winners;
             } else {
                 value -= size as i32;
