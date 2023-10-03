@@ -8,7 +8,9 @@ use super::action_abstraction::{
     AbstractRaise, AbstractRaiseType, RaiseRoundConfig
 };
 
-use poker::{Card, Evaluator, Eval, EvalClass};
+use poker::{Card, Evaluator, Eval, EvalClass, Rank, Suit};
+use itertools::Itertools;
+use variter::VarIter;
 
 use serde::{Deserialize, Serialize};
 
@@ -95,25 +97,46 @@ impl GameInfo {
 
     pub fn total_board_cards(&self, round: u8) -> u8 {
         let mut total = 0;
-        for i in 0..round {
+        for i in 0..=round {
             total += self.num_board_cards[i as usize];
         }
         total
     }
 
-    pub fn deal_hole_cards(&self) -> [Vec<Card>; MAX_PLAYERS] {
-        let mut cards = [(); MAX_PLAYERS].map(|_| Vec::new());
-        let deck = Vec::from(Card::generate_shuffled_deck());
+    pub fn generate_deck(&self) -> impl Iterator<Item = Card> {
+        Rank::ALL_VARIANTS.iter()
+            .take(self.num_ranks as usize)
+            .cartesian_product(Suit::ALL_VARIANTS.iter().take(self.num_suits as usize))
+            .map(|(&rank, &suit)| Card::new(rank, suit))
+    }
+
+    pub fn generate_shuffled_deck(&self) -> Box<[Card]> {
+        use rand::prelude::*;
+        let mut rng = thread_rng();
+        let mut cards = self.generate_deck().collect::<Box<_>>();
+        cards.shuffle(&mut rng);
+        cards
+    }
+
+    pub fn deal_hole_cards_and_board_cards(&self) -> ([Vec<Card>; MAX_PLAYERS], Vec<Card>) {
+        let mut hole_cards = [(); MAX_PLAYERS].map(|_| Vec::new());
+        let deck = Vec::from(self.generate_shuffled_deck());
         let mut c = 0;
 
         for i in 0..self.num_players {
             for _ in 0..self.num_hole_cards {
-                cards[i as usize].push(deck[c]);
+                hole_cards[i as usize].push(deck[c]);
                 c += 1;
             }
         }
 
-        cards
+        let mut board_cards = Vec::new();
+        for _ in 0..self.total_board_cards((self.num_board_cards.len() - 1) as u8) {
+            board_cards.push(deck[c]);
+            c += 1;
+        }
+
+        (hole_cards, board_cards)
     }
 }
 

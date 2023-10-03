@@ -15,4 +15,5 @@ fn main() {
     let mut cfr_engine = CFREngine::new(abstract_game);
 
     cfr_engine.mccfr_p(1500, 20, 400, 400, 400);
+    cfr_engine.print_strategy();
 }

@@ -32,6 +32,10 @@ impl CFREngine {
         }
     }
 
+    pub fn print_strategy(&self) {
+        println!("{:?}", self.strategy);
+    }
+
     pub fn mccfr_p(&mut self, ticks: u32, strategy_interval: u32, prune_threshold: u32, lcfr_threshold: u32, discount_interval: u32) {
         let num_players = self.abstract_game.game_info.num_players();
 
@@ -39,17 +43,21 @@ impl CFREngine {
             info!("Iteration {:?}", t);
             for i in 0..num_players {
                 if t % strategy_interval == 0 {
-                    self.update_strategy(self.abstract_game.get_root_node_id(), Vec::new(), &self.abstract_game.game_info.deal_hole_cards(), i);
+                    let (hole_cards, board_cards) = self.abstract_game.game_info.deal_hole_cards_and_board_cards();
+                    self.update_strategy(self.abstract_game.get_root_node_id(), &board_cards, self.abstract_game.game_info.total_board_cards(0) as usize, &hole_cards, i);
                 }
                 if t > prune_threshold {
                     let mut rng = rand::thread_rng();
                     if rng.gen::<f32>() < 0.05 {
-                        self.traverse_mccrfr(self.abstract_game.get_root_node_id(), Vec::new(), &self.abstract_game.game_info.deal_hole_cards(), i);
+                        let (hole_cards, board_cards) = self.abstract_game.game_info.deal_hole_cards_and_board_cards();
+                        self.traverse_mccrfr(self.abstract_game.get_root_node_id(), &board_cards, self.abstract_game.game_info.total_board_cards(0) as usize, &hole_cards, i);
                     } else {
-                        self.traverse_mccrfr_p(self.abstract_game.get_root_node_id(), Vec::new(),  &self.abstract_game.game_info.deal_hole_cards(), i);
+                        let (hole_cards, board_cards) = self.abstract_game.game_info.deal_hole_cards_and_board_cards();
+                        self.traverse_mccrfr_p(self.abstract_game.get_root_node_id(), &board_cards, self.abstract_game.game_info.total_board_cards(0) as usize, &hole_cards, i);
                     }
                 } else {
-                    self.traverse_mccrfr(self.abstract_game.get_root_node_id(), Vec::new(), &self.abstract_game.game_info.deal_hole_cards(), i);
+                        let (hole_cards, board_cards) = self.abstract_game.game_info.deal_hole_cards_and_board_cards();
+                        self.traverse_mccrfr(self.abstract_game.get_root_node_id(), &board_cards, self.abstract_game.game_info.total_board_cards(0) as usize, &hole_cards, i);
                 }
             }
 
@@ -92,12 +100,12 @@ impl CFREngine {
         strategy
     }
 
-    fn sample_strategy(strategy: &BTreeMap<Action, f32>) -> Action {
+    fn sample_strategy(sigma: &BTreeMap<Action, f32>) -> Action {
         let mut rng = rand::thread_rng();
-        *strategy.iter().collect::<Vec<(&Action, &f32)>>().choose_weighted(&mut rng, |item| item.1).unwrap().0
+        *sigma.iter().collect::<Vec<(&Action, &f32)>>().choose_weighted(&mut rng, |item| item.1).unwrap().0
     }
 
-    pub fn update_strategy(&mut self, node_id: NodeId, board_cards: Vec<Card>, hole_cards: &[Vec<Card>; MAX_PLAYERS], player: PlayerId) {
+    pub fn update_strategy(&mut self, node_id: NodeId, board_cards: &Vec<Card>, board_cards_i: usize, hole_cards: &[Vec<Card>; MAX_PLAYERS], player: PlayerId) {
         let current_node = self.abstract_game.get_node(node_id).unwrap();
         debug!("Updating strategy of node {node_id}");
 
@@ -129,22 +137,22 @@ impl CFREngine {
                     action_map
                 });
 
-            let mut child_board_cards = board_cards.clone();
-            let child_node_id = self.abstract_game.apply_action_to_node(node_id, &mut child_board_cards, hole_cards, action);
-            self.update_strategy(child_node_id, child_board_cards, hole_cards, player);
+            let mut child_board_cards_i = board_cards_i;
+            let child_node_id = self.abstract_game.apply_action_to_node(node_id, &mut child_board_cards_i, action);
+            self.update_strategy(child_node_id, board_cards, child_board_cards_i, hole_cards, player);
 
         } else {
             let actions = self.abstract_game.get_actions(&current_node.state);
             for action in actions {
-                let mut child_board_cards = board_cards.clone();
-                let child_node_id = self.abstract_game.apply_action_to_node(node_id, &mut child_board_cards, hole_cards, action);
-                self.update_strategy(child_node_id, child_board_cards, hole_cards, player);
+                let mut child_board_cards_i = board_cards_i;
+                let child_node_id = self.abstract_game.apply_action_to_node(node_id, &mut child_board_cards_i, action);
+                self.update_strategy(child_node_id, board_cards, child_board_cards_i, hole_cards, player);
             }
         }
 
     }
 
-    pub fn traverse_mccrfr(&mut self, node_id: NodeId, board_cards: Vec<Card>, hole_cards: &[Vec<Card>; MAX_PLAYERS], player: PlayerId) -> i32 {
+    pub fn traverse_mccrfr(&mut self, node_id: NodeId, board_cards: &Vec<Card>, board_cards_i: usize, hole_cards: &[Vec<Card>; MAX_PLAYERS], player: PlayerId) -> i32 {
         let current_node = self.abstract_game.get_node(node_id).unwrap();
 
         debug!("traverse_mccfr at node {node_id}");
@@ -172,9 +180,9 @@ impl CFREngine {
 
             let actions = self.abstract_game.get_actions(&current_node.state);
             for action in &actions {
-                let mut child_board_cards = board_cards.clone();
-                let child_node_id = self.abstract_game.apply_action_to_node(node_id, &mut child_board_cards, hole_cards, *action);
-                value_map.insert(*action, self.traverse_mccrfr(child_node_id, child_board_cards, hole_cards, player));
+                let mut child_board_cards_i = board_cards_i;
+                let child_node_id = self.abstract_game.apply_action_to_node(node_id, &mut child_board_cards_i, *action);
+                value_map.insert(*action, self.traverse_mccrfr(child_node_id, board_cards, child_board_cards_i, hole_cards, player));
                 v += *sigma.get(action).unwrap_or(&0.) * (*value_map.get(action).unwrap() as f32);
             }
             let v = v.round() as i32;
@@ -203,14 +211,14 @@ impl CFREngine {
             let sigma = CFREngine::calculate_strategy(regrets);
             let action = CFREngine::sample_strategy(&sigma);
 
-            let mut child_board_cards = board_cards.clone();
-            let child_node_id = self.abstract_game.apply_action_to_node(node_id, &mut child_board_cards, hole_cards, action);
-            return self.traverse_mccrfr(child_node_id, child_board_cards, hole_cards, player);
+            let mut child_board_cards_i = board_cards_i;
+            let child_node_id = self.abstract_game.apply_action_to_node(node_id, &mut child_board_cards_i, action);
+            return self.traverse_mccrfr(child_node_id, board_cards, child_board_cards_i, hole_cards, player);
         }
     }
 
 
-    pub fn traverse_mccrfr_p(&mut self, node_id: NodeId, board_cards: Vec<Card>, hole_cards: &[Vec<Card>; MAX_PLAYERS], player: PlayerId) -> i32 {
+    pub fn traverse_mccrfr_p(&mut self, node_id: NodeId, board_cards: &Vec<Card>, board_cards_i: usize, hole_cards: &[Vec<Card>; MAX_PLAYERS], player: PlayerId) -> i32 {
         let current_node = self.abstract_game.get_node(node_id).unwrap();
 
         debug!("traverse_mccfr_p at node {node_id}");
@@ -242,9 +250,9 @@ impl CFREngine {
             let actions = self.abstract_game.get_actions(&current_node.state);
             for action in &actions {
                 if *regrets.get(action).unwrap_or(&0) > -300000000 {
-                    let mut child_board_cards = board_cards.clone();
-                    let child_node_id = self.abstract_game.apply_action_to_node(node_id, &mut child_board_cards, hole_cards, *action);
-                    value_map.insert(*action, self.traverse_mccrfr_p(child_node_id, child_board_cards, hole_cards, player));
+                    let mut child_board_cards_i = board_cards_i;
+                    let child_node_id = self.abstract_game.apply_action_to_node(node_id, &mut child_board_cards_i, *action);
+                    value_map.insert(*action, self.traverse_mccrfr_p(child_node_id,board_cards, child_board_cards_i, hole_cards, player));
                     v += *sigma.get(action).unwrap_or(&0.) * (*value_map.get(action).unwrap() as f32);
                 }
             }
@@ -277,9 +285,9 @@ impl CFREngine {
             let sigma = CFREngine::calculate_strategy(regrets);
             let action = CFREngine::sample_strategy(&sigma);
 
-            let mut child_board_cards = board_cards.clone();
-            let child_node_id = self.abstract_game.apply_action_to_node(node_id, &mut child_board_cards, hole_cards, action);
-            return self.traverse_mccrfr_p(child_node_id, child_board_cards, hole_cards, player);
+            let mut child_board_cards_i = board_cards_i;
+            let child_node_id = self.abstract_game.apply_action_to_node(node_id, &mut child_board_cards_i, action);
+            return self.traverse_mccrfr_p(child_node_id, board_cards, child_board_cards_i, hole_cards, player);
         }
     }
 }
