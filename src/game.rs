@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 
 use std::fs;
 use std::option::Option;
+use std::cmp::max;
 
 pub const MAX_PLAYERS: usize = 22;
 pub const MAX_ROUNDS: usize = 4;
@@ -482,7 +483,7 @@ impl GameState {
             new_state.finished = true;
         } else if new_state.num_called(game_info) >= new_state.num_active_players(game_info) {
             if new_state.num_active_players(game_info) > 1 {
-                if new_state.round + 1 > game_info.num_rounds {
+                if new_state.round + 1 < game_info.num_rounds {
                     new_state.round += 1;
                     new_state.min_no_limit_raise_to = 1;
                     for i in 0..game_info.num_players() {
@@ -551,10 +552,16 @@ impl GameState {
 
                 let cards = [&hole_cards[i as usize][..], board_cards].concat();
 
-                // CHECK: Special case for Kuhn poker, I should check that EvalClass is enough to
+                // CHECK: Special cases for Kuhn poker and Leduc poker, I should check that EvalClass is enough to
                 // compare hands
                 if cards.len() == 1 {
                     rank[players_left as usize] = Some(EvalClass::HighCard { high_rank: cards[0].rank() });
+                } else if cards.len() == 2 {
+                    if cards[0].rank() == cards[1].rank() {
+                        rank[players_left as usize] = Some(EvalClass::Pair { pair: cards[0].rank() });
+                    } else {
+                        rank[players_left as usize] = Some(EvalClass::HighCard { high_rank: max(cards[0].rank(), cards[1].rank()) })
+                    }
                 } else {
                     rank[players_left as usize] = Some(evaluator.evaluate(cards).expect("couldn't evaluate hand").class());
                 }

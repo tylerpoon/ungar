@@ -15,25 +15,43 @@ use log::info;
 
 use poker::{Card, Evaluator};
 
+pub struct CFRConfig {
+    rounds_update_average_strategy: u8,
+}
+
+impl CFRConfig  {
+    pub fn new(rounds_update_average_strategy: u8) -> CFRConfig {
+        CFRConfig {
+            rounds_update_average_strategy,
+        }
+    }
+}
+
 pub struct CFREngine {
     abstract_game: AbstractGame,
-    strategy: Strategy,
+    average_strategy: Strategy,
     regrets: Regrets,
     evaluator: Evaluator,
+    config: CFRConfig,
 }
 
 impl CFREngine {
-    pub fn new(abstract_game: AbstractGame) -> CFREngine {
+    pub fn new(abstract_game: AbstractGame, config: CFRConfig) -> CFREngine {
         CFREngine {
             abstract_game,
-            strategy: Strategy::new(),
+            average_strategy: Strategy::new(),
             regrets: Regrets::new(), 
             evaluator: Evaluator::new(),
+            config,
         }
     }
 
-    pub fn print_strategy(&self) {
-        println!("{:?}", self.strategy);
+    pub fn print_average_strategy(&self) {
+        println!("{:?}", self.average_strategy);
+    }
+
+    pub fn print_regrets(&self) {
+        println!("{:?}", self.regrets);
     }
 
     pub fn mccfr_p(&mut self, ticks: u32, strategy_interval: u32, prune_threshold: u32, lcfr_threshold: u32, discount_interval: u32) {
@@ -70,7 +88,7 @@ impl CFREngine {
                         *v = ((*v as f32) * d).round() as i32;
                     }
                 }
-                for strategy in self.strategy.values_mut() {
+                for strategy in self.average_strategy.values_mut() {
                     for v in strategy.values_mut() {
                         *v = ((*v as f32) * d).round() as i32;
                     }
@@ -109,7 +127,8 @@ impl CFREngine {
         let current_node = self.abstract_game.get_node(node_id).unwrap();
         debug!("Updating strategy of node {node_id}");
 
-        if current_node.state.is_finished() || current_node.state.has_folded(player) || current_node.state.current_round() > 0 {
+        // CHECK: Doesn't generate average strategy past first betting round
+        if current_node.state.is_finished() || current_node.state.has_folded(player) || current_node.state.current_round() > self.config.rounds_update_average_strategy {
             return;
         } else if current_node.state.current_player().unwrap() == player {
             let bucket_id = self.abstract_game.get_bucket(current_node.state.current_round(), &board_cards, &hole_cards[player as usize]);
@@ -125,7 +144,7 @@ impl CFREngine {
             let action = CFREngine::sample_strategy(&sigma);
 
             // Add one to action counter
-            self.strategy.entry((node_id, bucket_id))
+            self.average_strategy.entry((node_id, bucket_id))
                 .and_modify(|s| { let _ = *s.entry(action).and_modify(|x| *x += 1).or_insert(0); })
                 .or_insert_with(|| {
                     let mut action_map: BTreeMap<Action, i32> = BTreeMap::new();

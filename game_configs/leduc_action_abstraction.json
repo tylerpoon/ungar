@@ -1,0 +1,16 @@
+{
+    "possible_raises":[
+        {
+            "raise_type": {
+                "Fixed": 2
+            },
+            "round_config": ["Always", "NotAllowed"]
+        },
+        {
+            "raise_type": {
+                "Fixed": 4
+            },
+            "round_config": ["NotAllowed", "Always"]
+        }
+    ]
+}
