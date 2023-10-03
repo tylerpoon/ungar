@@ -1,14 +1,14 @@
 {
     "starting_stacks": [100, 100],
     "blinds": [1, 1],
-    "raise_sizes": [1],
+    "raise_sizes": [2, 4],
     "betting_type": "Limit",
     "num_players": 2,
-    "num_rounds": 1,
-    "max_raises": [2],
-    "first_player": [0],
-    "num_suits": 1,
+    "num_rounds": 2,
+    "max_raises": [2, 2],
+    "first_player": [0, 0],
+    "num_suits": 2,
     "num_ranks": 3,
     "num_hole_cards": 1,
-    "num_board_cards": [0]
+    "num_board_cards": [0, 1]
 }
