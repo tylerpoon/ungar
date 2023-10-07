@@ -1,6 +1,5 @@
 use super::{
     abstract_game::AbstractGame,
-    card_abstraction::BucketId,
     game::{Action, PlayerId, MAX_PLAYERS},
     strategy::{ Strategy, Regrets },
     node::NodeId,
@@ -8,13 +7,18 @@ use super::{
 
 use std::collections::BTreeMap;
 use std::cmp::max;
+use std::fs;
+use std::path::Path;
 use rand::Rng;
 use rand::prelude::*;
 
 use log::info;
 
+use serde::{Serialize, Deserialize};
+
 use poker::{Card, Evaluator};
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CFRConfig {
     rounds_update_average_strategy: u8,
 }
@@ -24,6 +28,11 @@ impl CFRConfig  {
         CFRConfig {
             rounds_update_average_strategy,
         }
+    }
+
+    pub fn from_config(path: &Path) -> CFRConfig {
+        let cfr_config = serde_json::from_str(&fs::read_to_string(path).expect("failed to read cfr config")).expect("failed to deserialize cfr config");
+        cfr_config
     }
 }
 

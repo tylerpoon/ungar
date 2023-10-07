@@ -2,7 +2,7 @@ use super::{
     game::{Action, GameInfo, GameState},
 };
 
-use std::fs;
+use std::{fs, path::Path};
 
 use serde::{Deserialize, Serialize};
 
@@ -41,7 +41,7 @@ impl ActionAbstraction {
         ActionAbstraction { possible_raises }
     }
 
-    pub fn from_config(path: &str) -> ActionAbstraction {
+    pub fn from_config(path: &Path) -> ActionAbstraction {
         let action_abstraction: ActionAbstraction = serde_json::from_str(&fs::read_to_string(path).expect("failed to read action abstraction config")).expect("failed to deserialize action abstraction");
         action_abstraction
     }

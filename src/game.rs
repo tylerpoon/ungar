@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::option::Option;
 use std::cmp::max;
+use std::path::Path;
 
 pub const MAX_PLAYERS: usize = 22;
 pub const MAX_ROUNDS: usize = 4;
@@ -65,7 +66,7 @@ pub struct GameInfo {
 }
 
 impl GameInfo {
-    pub fn load_game_info(path: &str) -> GameInfo {
+    pub fn load_game_info(path: &Path) -> GameInfo {
         let game_info: GameInfo = serde_json::from_str(&fs::read_to_string(path).expect("failed to read game info")).expect("failed to deserialize game info");
         assert!(game_info.starting_stacks.len() as u8 == game_info.num_players);
         assert!(game_info.blinds.len() as u8 == game_info.num_players);

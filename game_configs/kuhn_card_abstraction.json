@@ -1,0 +1,11 @@
+{
+    "round_infosets":[
+        {
+            "type": "NoBuckets",
+            "num_suits": 1,
+            "num_ranks": 3,
+            "num_board_cards": 0,
+            "num_hole_cards": 1
+        }
+    ]
+}
