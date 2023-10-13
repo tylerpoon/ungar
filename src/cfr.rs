@@ -5,7 +5,7 @@ use super::{
     node::NodeId,
 };
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, io::BufWriter};
 use std::cmp::max;
 use std::fs;
 use std::path::Path;
@@ -59,6 +59,11 @@ impl CFREngine {
         println!("{:?}", self.average_strategy);
     }
 
+    pub fn save_average_strategy(&self, path: &Path) {
+        let mut f = BufWriter::new(fs::File::create(path).unwrap());
+        bincode::serialize_into(&mut f, &self.average_strategy).unwrap();
+    }
+
     pub fn print_regrets(&self) {
         println!("{:?}", self.regrets);
     }
@@ -97,7 +102,7 @@ impl CFREngine {
                         *v = ((*v as f32) * d).round() as i32;
                     }
                 }
-                for strategy in self.average_strategy.values_mut() {
+                for strategy in self.average_strategy.0.values_mut() {
                     for v in strategy.values_mut() {
                         *v = ((*v as f32) * d).round() as i32;
                     }
@@ -153,7 +158,7 @@ impl CFREngine {
             let action = CFREngine::sample_strategy(&sigma);
 
             // Add one to action counter
-            self.average_strategy.entry((node_id, bucket_id))
+            self.average_strategy.0.entry((node_id, bucket_id))
                 .and_modify(|s| { let _ = *s.entry(action).and_modify(|x| *x += 1).or_insert(0); })
                 .or_insert_with(|| {
                     let mut action_map: BTreeMap<Action, i32> = BTreeMap::new();

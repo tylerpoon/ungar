@@ -5,8 +5,8 @@ pub mod game;
 
 pub mod abstract_game;
 pub mod action_abstraction;
-pub mod agent;
 pub mod card_abstraction;
 pub mod cfr;
 pub mod node;
+pub mod play;
 pub mod strategy;

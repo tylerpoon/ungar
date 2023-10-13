@@ -33,7 +33,7 @@ pub enum BettingType {
 }
 
 /// Represents possible actions
-#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Deserialize, Serialize)]
 pub enum Action {
     Fold,
     Call,

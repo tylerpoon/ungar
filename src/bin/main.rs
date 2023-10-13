@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use ungar::{*, cfr::{CFREngine, CFRConfig}, abstract_game::AbstractGame};
+use ungar::{*, cfr::{CFREngine, CFRConfig}, abstract_game::AbstractGame, play::play, strategy::Strategy};
 
 use clap::{Parser, Subcommand};
 
@@ -9,8 +9,13 @@ enum Commands {
     Train {
         #[arg(long)]
         cfr_config: PathBuf,
+        #[arg(long, short)]
+        output_strategy_path: Option<PathBuf>,
     },
-    Play,
+    Play {
+        #[arg(short, long)]
+        strategy_path: PathBuf,
+    },
 }
 
 #[derive(Parser, Debug)]
@@ -31,11 +36,14 @@ struct Args {
     command: Commands,
 }
 
-fn train(abstract_game: AbstractGame, cfr_config: CFRConfig) {
+fn train(abstract_game: AbstractGame, cfr_config: CFRConfig, output_strategy_path: Option<PathBuf>) {
     let mut cfr_engine = CFREngine::new(abstract_game, cfr_config);
 
     cfr_engine.mccfr_p(1500, 20, 400, 400, 400);
-    cfr_engine.print_average_strategy();
+    match output_strategy_path {
+        Some(p) => cfr_engine.save_average_strategy(&p),
+        None => cfr_engine.print_average_strategy(),
+    };
 }
 
 fn main() {
@@ -51,11 +59,13 @@ fn main() {
     let abstract_game = AbstractGame::new(game_info, starting_state, action_abstraction, card_abstraction);
 
     match args.command {
-        Commands::Train { cfr_config }=> {
+        Commands::Train { cfr_config, output_strategy_path }=> {
             let cfr_config = CFRConfig::from_config(&cfr_config);
-            train(abstract_game, cfr_config);
+            train(abstract_game, cfr_config, output_strategy_path);
         },
-        Commands::Play => {
+        Commands::Play { strategy_path } => {
+            let strategy = Strategy::from_file(&strategy_path);
+            play(abstract_game, strategy);
         }
     }
 
