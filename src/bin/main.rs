@@ -43,7 +43,7 @@ struct Args {
 fn train(abstract_game: AbstractGame, cfr_config: CFRConfig, output_strategy_path: Option<PathBuf>, output_nodes_path: Option<PathBuf>) {
     let mut cfr_engine = CFREngine::new(abstract_game, cfr_config);
 
-    cfr_engine.mccfr_p(1500, 20, 400, 400, 400);
+    cfr_engine.mccfr_p(150000, 20, 400, 100000, 2500);
     match output_strategy_path {
         Some(p) => cfr_engine.save_average_strategy(&p),
         None => cfr_engine.print_average_strategy(),
@@ -52,6 +52,8 @@ fn train(abstract_game: AbstractGame, cfr_config: CFRConfig, output_strategy_pat
         Some(p) => cfr_engine.save_nodes(&p),
         None => (),
     };
+    cfr_engine.print_regrets();
+    cfr_engine.print_average_strategy()
 }
 
 fn main() {

@@ -67,7 +67,7 @@ pub fn play(abstract_game: &mut AbstractGame, strategy: Strategy) {
                     }
                 }
             } else {
-                let bucket_id = abstract_game.get_bucket(state.current_round(), &board_cards, &hole_cards[player as usize]);
+                let bucket_id = abstract_game.get_bucket(state.current_round(), &board_cards, &hole_cards[state.current_player().unwrap() as usize]);
                 action = strategy.sample(&abstract_game, node_id, bucket_id);
             }
 

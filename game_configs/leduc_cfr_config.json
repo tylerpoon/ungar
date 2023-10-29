@@ -1,3 +1,4 @@
 {
-    "rounds_update_average_strategy": 1
+    "rounds_update_average_strategy": 1,
+    "payout_amp": 10
 }

@@ -21,12 +21,14 @@ use poker::{Card, Evaluator};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CFRConfig {
     rounds_update_average_strategy: u8,
+    payout_amp: i32,
 }
 
 impl CFRConfig  {
-    pub fn new(rounds_update_average_strategy: u8) -> CFRConfig {
+    pub fn new(rounds_update_average_strategy: u8, payout_amp: i32) -> CFRConfig {
         CFRConfig {
             rounds_update_average_strategy,
+            payout_amp,
         }
     }
 
@@ -195,11 +197,11 @@ impl CFREngine {
         debug!("traverse_mccfr at node {node_id}");
 
         if current_node.state.is_finished() {
-            return current_node.state.get_payout(&self.abstract_game.game_info, &self.evaluator, &board_cards, &hole_cards, player);
+            return current_node.state.get_payout(&self.abstract_game.game_info, &self.evaluator, &board_cards, &hole_cards, player) * self.config.payout_amp;
         } else if current_node.state.has_folded(player) {
             //CHECK: this is what they do in paper return traverse_mccfr(h*0, P_i), but I think
             //this makes more sense
-            return current_node.state.get_payout(&self.abstract_game.game_info, &self.evaluator, &board_cards, &hole_cards, player);
+            return current_node.state.get_payout(&self.abstract_game.game_info, &self.evaluator, &board_cards, &hole_cards, player) * self.config.payout_amp;
         } else if current_node.state.current_player().unwrap() == player {
             let bucket_id = self.abstract_game.get_bucket(current_node.state.current_round(), &board_cards, &hole_cards[player as usize]);
             let regrets = self.regrets.entry((node_id, bucket_id))
@@ -261,11 +263,11 @@ impl CFREngine {
         debug!("traverse_mccfr_p at node {node_id}");
 
         if current_node.state.is_finished() {
-            return current_node.state.get_payout(&self.abstract_game.game_info, &self.evaluator, &board_cards, &hole_cards, player);
+            return current_node.state.get_payout(&self.abstract_game.game_info, &self.evaluator, &board_cards, &hole_cards, player) * self.config.payout_amp;
         } else if current_node.state.has_folded(player) {
             //CHECK: this is what they do in paper return traverse_mccfr(h*0, P_i), but I think
             //this makes more sense
-            return current_node.state.get_payout(&self.abstract_game.game_info, &self.evaluator, &board_cards, &hole_cards, player);
+            return current_node.state.get_payout(&self.abstract_game.game_info, &self.evaluator, &board_cards, &hole_cards, player) * self.config.payout_amp;
         } else if current_node.state.current_player().unwrap() == player {
             let bucket_id = self.abstract_game.get_bucket(current_node.state.current_round(), &board_cards, &hole_cards[player as usize]);
             let regrets = self.regrets.entry((node_id, bucket_id))
@@ -289,7 +291,7 @@ impl CFREngine {
                 if *regrets.get(action).unwrap_or(&0) > -300000000 {
                     let mut child_board_cards_i = board_cards_i;
                     let child_node_id = self.abstract_game.apply_action_to_node(node_id, &mut child_board_cards_i, *action);
-                    value_map.insert(*action, self.traverse_mccrfr_p(child_node_id,board_cards, child_board_cards_i, hole_cards, player));
+                    value_map.insert(*action, self.traverse_mccrfr_p(child_node_id, board_cards, child_board_cards_i, hole_cards, player));
                     v += *sigma.get(action).unwrap_or(&0.) * (*value_map.get(action).unwrap() as f32);
                 }
             }

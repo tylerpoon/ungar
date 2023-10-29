@@ -43,6 +43,7 @@ impl Strategy {
                 action_map
             },
         };
+        println!("({}, {}): {:?}", node_id, bucket_id, sigma);
 
         *sigma.iter().collect::<Vec<(&Action, &i32)>>().choose_weighted(&mut rng, |item| item.1).unwrap().0
     }
