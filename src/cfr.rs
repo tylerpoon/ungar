@@ -64,6 +64,10 @@ impl CFREngine {
         bincode::serialize_into(&mut f, &self.average_strategy).unwrap();
     }
 
+    pub fn save_nodes(&self, path: &Path) {
+        self.abstract_game.nodes.save(path);
+    }
+
     pub fn print_regrets(&self) {
         println!("{:?}", self.regrets);
     }
@@ -76,20 +80,20 @@ impl CFREngine {
             for i in 0..num_players {
                 if t % strategy_interval == 0 {
                     let (hole_cards, board_cards) = self.abstract_game.game_info.deal_hole_cards_and_board_cards();
-                    self.update_strategy(self.abstract_game.get_root_node_id(), &board_cards, self.abstract_game.game_info.total_board_cards(0) as usize, &hole_cards, i);
+                    self.update_strategy(self.abstract_game.nodes.get_root_node_id(), &board_cards, self.abstract_game.game_info.total_board_cards(0) as usize, &hole_cards, i);
                 }
                 if t > prune_threshold {
                     let mut rng = rand::thread_rng();
                     if rng.gen::<f32>() < 0.05 {
                         let (hole_cards, board_cards) = self.abstract_game.game_info.deal_hole_cards_and_board_cards();
-                        self.traverse_mccrfr(self.abstract_game.get_root_node_id(), &board_cards, self.abstract_game.game_info.total_board_cards(0) as usize, &hole_cards, i);
+                        self.traverse_mccrfr(self.abstract_game.nodes.get_root_node_id(), &board_cards, self.abstract_game.game_info.total_board_cards(0) as usize, &hole_cards, i);
                     } else {
                         let (hole_cards, board_cards) = self.abstract_game.game_info.deal_hole_cards_and_board_cards();
-                        self.traverse_mccrfr_p(self.abstract_game.get_root_node_id(), &board_cards, self.abstract_game.game_info.total_board_cards(0) as usize, &hole_cards, i);
+                        self.traverse_mccrfr_p(self.abstract_game.nodes.get_root_node_id(), &board_cards, self.abstract_game.game_info.total_board_cards(0) as usize, &hole_cards, i);
                     }
                 } else {
                         let (hole_cards, board_cards) = self.abstract_game.game_info.deal_hole_cards_and_board_cards();
-                        self.traverse_mccrfr(self.abstract_game.get_root_node_id(), &board_cards, self.abstract_game.game_info.total_board_cards(0) as usize, &hole_cards, i);
+                        self.traverse_mccrfr(self.abstract_game.nodes.get_root_node_id(), &board_cards, self.abstract_game.game_info.total_board_cards(0) as usize, &hole_cards, i);
                 }
             }
 
@@ -138,7 +142,7 @@ impl CFREngine {
     }
 
     pub fn update_strategy(&mut self, node_id: NodeId, board_cards: &Vec<Card>, board_cards_i: usize, hole_cards: &[Vec<Card>; MAX_PLAYERS], player: PlayerId) {
-        let current_node = self.abstract_game.get_node(node_id).unwrap();
+        let current_node = self.abstract_game.nodes.get_node(node_id).unwrap();
         debug!("Updating strategy of node {node_id}");
 
         // CHECK: Doesn't generate average strategy past first betting round
@@ -186,7 +190,7 @@ impl CFREngine {
     }
 
     pub fn traverse_mccrfr(&mut self, node_id: NodeId, board_cards: &Vec<Card>, board_cards_i: usize, hole_cards: &[Vec<Card>; MAX_PLAYERS], player: PlayerId) -> i32 {
-        let current_node = self.abstract_game.get_node(node_id).unwrap();
+        let current_node = self.abstract_game.nodes.get_node(node_id).unwrap();
 
         debug!("traverse_mccfr at node {node_id}");
 
@@ -252,7 +256,7 @@ impl CFREngine {
 
 
     pub fn traverse_mccrfr_p(&mut self, node_id: NodeId, board_cards: &Vec<Card>, board_cards_i: usize, hole_cards: &[Vec<Card>; MAX_PLAYERS], player: PlayerId) -> i32 {
-        let current_node = self.abstract_game.get_node(node_id).unwrap();
+        let current_node = self.abstract_game.nodes.get_node(node_id).unwrap();
 
         debug!("traverse_mccfr_p at node {node_id}");
 

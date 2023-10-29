@@ -15,6 +15,7 @@ use variter::VarIter;
 use serde::{Deserialize, Serialize};
 
 use std::fs;
+use std::fmt;
 use std::option::Option;
 use std::cmp::max;
 use std::path::Path;
@@ -38,6 +39,16 @@ pub enum Action {
     Fold,
     Call,
     Raise(u32),
+}
+
+impl fmt::Display for Action {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Action::Fold => write!(f, "fold"),
+            Action::Call => write!(f, "call"),
+            Action::Raise(r) => write!(f, "raise {}", r),
+        }
+    }
 }
 
 pub type PlayerId = u8;
@@ -143,7 +154,7 @@ impl GameInfo {
 }
 
 /// Represents the state of a poker game
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GameState {
     hand_id: u32,
     /// Largest bet over all rounds so far
@@ -168,8 +179,8 @@ pub struct GameState {
     finished: bool,
     /// Which players have folded
     players_folded: [bool; MAX_PLAYERS],
-    board_cards: Vec<Card>,
-    hole_cards: [Vec<Card>; MAX_PLAYERS],
+    // board_cards: Vec<Card>,
+    // hole_cards: [Vec<Card>; MAX_PLAYERS],
 }
 
 impl GameState {
@@ -214,9 +225,25 @@ impl GameState {
             round: 0,
             finished: false,
             players_folded,
-            board_cards: Vec::new(),
-            hole_cards: [(); MAX_PLAYERS].map(|_| Vec::new()),
+            // board_cards: Vec::new(),
+            // hole_cards: [(); MAX_PLAYERS].map(|_| Vec::new()),
         }
+    }
+
+    pub fn pot_total(&self, game_info: &GameInfo) -> u32 {
+        let mut total = 0;
+        for i in 0..game_info.num_players {
+            total += self.spent[i as usize]; 
+        }
+        total
+    }
+
+    pub fn player_stack(&self, player: PlayerId) -> u32 {
+        self.stack_player[player as usize]
+    }
+
+    pub fn player_spent(&self, player: PlayerId) -> u32 {
+        self.spent[player as usize]
     }
 
     pub fn current_round(&self) -> u8 {
@@ -581,7 +608,8 @@ impl GameState {
 
         loop {
             let mut size = u32::MAX;
-            let mut win_rank = Eval::WORST.class();
+            //CHECK: if this win_rank is correct, doing this for kuhn/leduc poker to work
+            let mut win_rank = EvalClass::HighCard { high_rank: Rank::Two };
             let mut num_winners: i32 = 0;
 
             for i in 0..players_left {

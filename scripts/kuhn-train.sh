@@ -1,0 +1,1 @@
+ cargo run -- -g game_configs/kuhn.json --action-abstraction-config game_configs/kuhn_action_abstraction.json --card-abstraction-config game_configs/kuhn_card_abstraction.json train --cfr-config game_configs/kuhn_cfr_config.json --output-strategy-path data/kuhn_strategy.bin --output-nodes-path data/kuhn_nodes.bin
